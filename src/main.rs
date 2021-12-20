@@ -1,15 +1,40 @@
-use std::{fs, process::Command};
+use std::{error::Error, fs::{self, File}, process::Command, path::Path, collections::HashMap};
 
 use clap::{Arg, App};
 use git2::Repository;
-use serde_yaml::Mapping;
-use std::path::PathBuf;
+use serde::{Serialize, Deserialize};
 
 const GITHUB_URL: &str = "https://github.com/";
 const MANIFEST_FILENAME: &str = "jtd.yaml";
 const REPO_DIR: &str = "/tmp/jtd/"; 
 
-fn main() {
+const MANIFEST_PATH: &str = "/tmp/jtd/jtd.yaml"; 
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Config {
+    #[serde(flatten)] 
+    data: HashMap<String, Dotfile>
+}
+
+impl IntoIterator for Config {
+    type Item = (String, Dotfile);
+
+    type IntoIter = std::collections::hash_map::IntoIter<String, Dotfile>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Dotfile {
+    file: String,
+    target: Box<Path>,
+    pre_install: Vec<String>,
+    post_install: Vec<String>
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("jointhedots")
         .version("0.0.1")
         .author("Daniel O. <dob9601@gmail.com>")
@@ -25,14 +50,46 @@ fn main() {
         let mut url = GITHUB_URL.to_string();
         url.push_str(value);
 
-        fs::remove_dir_all(REPO_DIR).ok();
-        fs::create_dir_all(REPO_DIR).expect("Could not create temporary repo directory");
+        if Path::new(REPO_DIR).exists() {
+            fs::remove_dir_all(REPO_DIR).expect("Could not clear temporary directory");
+        }
+        fs::create_dir_all(REPO_DIR).expect("Could not create temporary directory");
 
-        let repo = match Repository::clone(url.as_str(), REPO_DIR) {
+        let _repo = match Repository::clone(url.as_str(), REPO_DIR) {
             Ok(repo) => repo,
             Err(e) => panic!("Failed to open: {}", e)
         };
 
+        let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?).unwrap();
+
+        for (dotfile_name, dotfile) in config.into_iter() {
+            println!("Commencing install for {}", dotfile_name);
+
+            println!("Running pre-install steps");
+            run_command_vec(&dotfile.pre_install)?;
+
+            println!("Installing config file");
+            fs::copy(REPO_DIR.to_owned() + &dotfile.file, &dotfile.target)?;
+
+            println!("Running post-install steps");
+            run_command_vec(&dotfile.post_install)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>>{
+    for command in command_vec.iter() {
+        println!("{}", command);
+        let command_vec: Vec<&str> = command.split(' ').collect();
+        Command::new(command_vec[0])
+            .args(&command_vec[1..])
+            .spawn()?;
+    }
+    Ok(())
+}
+
+        /*
         let mut repo_path = REPO_DIR.to_string();
         repo_path.push_str(MANIFEST_FILENAME);
 
@@ -63,9 +120,8 @@ fn main() {
 
                 println!("{}", target_folder.to_str().expect("x"));
                 println!("{}", target_path);
-                fs::create_dir_all(target_folder).expect(format!("Could not create target directory for config {}", key_name).as_str());
-                fs::copy(config_path, target_path.to_string()).expect(format!("Could not copy to target directory for config {}", key_name).as_str());
+                fs::create_dir_all(target_folder).map_err(|err| format!("Could not create target directory for config {}: {:?}", key_name, err))?;
+                fs::copy(config_path, target_path.to_string()).map_err(|err| format!("Could not copy to target directory for config {}: {:?}", key_name, err))?;
             }
         }
-    }
-}
+        */
