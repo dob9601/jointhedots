@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/product.schema.json",
+  "title": "JTDConfig",
+  "description": "A collection of Dotfiles",
+  "type": "object",
+  "additionalProperties": {
+      "type": "object",
+      "properties": {
+          "file": {
+              "type": "string"
+          },
+          "target": {
+              "type": "string"
+          },
+          "pre_install": {
+              "type": "string"
+          },
+          "post_install": {
+              "type": "string"
+          }
+      },
+      "required": ["file", "target"],
+      "additionalProperties": false
+  }
+}
