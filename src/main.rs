@@ -30,8 +30,8 @@ impl IntoIterator for Config {
 struct Dotfile {
     file: String,
     target: Box<Path>,
-    pre_install: Vec<String>,
-    post_install: Vec<String>
+    pre_install: Option<Vec<String>>,
+    post_install: Option<Vec<String>>
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -66,13 +66,18 @@ fn main() -> Result<(), Box<dyn Error>> {
             println!("Commencing install for {}", dotfile_name);
 
             println!("Running pre-install steps");
-            run_command_vec(&dotfile.pre_install)?;
+            if let Some(pre_install) = &dotfile.pre_install {
+                run_command_vec(&pre_install)?;
+
+            }
 
             println!("Installing config file");
             fs::copy(REPO_DIR.to_owned() + &dotfile.file, &dotfile.target)?;
 
             println!("Running post-install steps");
-            run_command_vec(&dotfile.post_install)?;
+            if let Some(post_install) = &dotfile.post_install {
+                run_command_vec(&post_install)?;
+            }
         }
     }
     Ok(())
