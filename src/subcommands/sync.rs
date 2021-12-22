@@ -5,12 +5,10 @@ use std::{
     process::Command,
 };
 
-use git2::Repository;
-
 use crate::{
     cli::SyncSubcommandArgs,
     structs::Config,
-    utils::{add_and_commit_changes, get_repo_host_ssh_url},
+    utils::get_repo_host_ssh_url,
     MANIFEST_PATH, REPO_DIR,
 };
 
@@ -28,6 +26,8 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
     let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?).unwrap();
 
     for (dotfile_name, dotfile) in config.into_iter() {
+        println!("Syncing {}", dotfile_name);
+
         let mut target_path_buf = PathBuf::from(REPO_DIR);
         target_path_buf.push(&dotfile.file);
         let target_path = target_path_buf.as_path();

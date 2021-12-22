@@ -2,12 +2,13 @@
 name = "jointhedots"
 version = "0.0.1"
 edition = "2018"
+license = "MIT"
+description = "Simple git-based dotfile manager"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap = { version = "3.0.0-rc.7", features = ["derive"] }
-git2 = "0.13"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 shellexpand = "2.1.0"
