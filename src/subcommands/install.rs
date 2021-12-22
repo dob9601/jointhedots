@@ -6,12 +6,11 @@ use git2::Repository;
 
 use crate::cli::InstallSubcommandArgs;
 use crate::structs::Config;
-use crate::utils::run_command_vec;
-use crate::{GITHUB_URL, REPO_DIR, MANIFEST_PATH};
+use crate::utils::{run_command_vec, get_repo_host_ssh_url};
+use crate::{REPO_DIR, MANIFEST_PATH};
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>>{
-    let mut url = GITHUB_URL.to_string();
-    url.push_str(&args.repository);
+    let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
 
     if Path::new(REPO_DIR).exists() {
         fs::remove_dir_all(REPO_DIR).expect("Could not clear temporary directory");
@@ -19,10 +18,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     fs::create_dir_all(REPO_DIR).expect("Could not create temporary directory");
 
     println!("Attempting to clone repository");
-    let _repo = match Repository::clone(url.as_str(), REPO_DIR) {
-        Ok(repo) => repo,
-        Err(e) => panic!("Failed to open: {}", e),
-    };
+    Repository::clone(url.as_str(), REPO_DIR)?;
 
     let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?).unwrap();
 
@@ -31,7 +27,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
         if let Some(pre_install) = &dotfile.pre_install {
             println!("Running pre-install steps");
-            run_command_vec(&pre_install)?;
+            run_command_vec(pre_install)?;
         }
 
         let mut origin_path_buf = PathBuf::from(REPO_DIR);
@@ -60,7 +56,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
         if let Some(post_install) = &dotfile.post_install {
             println!("Running post-install steps");
-            run_command_vec(&post_install)?;
+            run_command_vec(post_install)?;
         }
     }
     Ok(())

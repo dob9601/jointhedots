@@ -1,4 +1,3 @@
-pub const GITHUB_URL: &str = "https://github.com/";
 pub const REPO_DIR: &str = "/tmp/jtd/";
 pub const MANIFEST_PATH: &str = "/tmp/jtd/jtd.yaml";
 
