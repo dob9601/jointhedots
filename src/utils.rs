@@ -1,4 +1,4 @@
-use std::{error::Error, process::Command};
+use std::{error::Error, process::Command, path::Path, fs};
 
 pub const GITHUB_SSH_URL_PREFIX: &str = "git@github.com:";
 pub const GITLAB_SSH_URL_PREFIX: &str = "git@gitlab.com:";
@@ -19,4 +19,15 @@ pub fn get_repo_host_ssh_url(host: &str) -> Result<&str, Box<dyn Error>> {
         "gitlab" => Ok(GITLAB_SSH_URL_PREFIX),
         _ => Err("Provided host unknown".into())
     }
+}
+
+pub fn clone_repo(target_dir: &Path, url: &str) -> Result<(), Box<dyn Error>> {
+    if Path::new(target_dir).exists() {
+        fs::remove_dir_all(target_dir).expect("Could not clear temporary directory");
+    }
+    fs::create_dir_all(target_dir).expect("Could not create temporary directory");
+
+    println!("Attempting to clone repository");
+    Command::new("git").arg("clone").arg(url).arg(".").current_dir(target_dir).status()?;
+    Ok(())
 }

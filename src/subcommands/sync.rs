@@ -8,20 +8,14 @@ use std::{
 use crate::{
     cli::SyncSubcommandArgs,
     structs::Config,
-    utils::get_repo_host_ssh_url,
+    utils::{get_repo_host_ssh_url, clone_repo},
     MANIFEST_PATH, REPO_DIR,
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
 
-    if Path::new(REPO_DIR).exists() {
-        fs::remove_dir_all(REPO_DIR).expect("Could not clear temporary directory");
-    }
-    fs::create_dir_all(REPO_DIR).expect("Could not create temporary directory");
-
-    println!("Attempting to clone repository");
-    Command::new("git").arg("clone").arg(url).arg(".").current_dir(REPO_DIR).status()?;
+    clone_repo(Path::new(REPO_DIR), &url)?;
 
     let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?).unwrap();
 
