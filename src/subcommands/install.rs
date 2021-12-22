@@ -1,8 +1,7 @@
 use std::error::Error;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
-
-use git2::Repository;
+use std::process::Command;
 
 use crate::cli::InstallSubcommandArgs;
 use crate::structs::Config;
@@ -18,7 +17,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     fs::create_dir_all(REPO_DIR).expect("Could not create temporary directory");
 
     println!("Attempting to clone repository");
-    Repository::clone(url.as_str(), REPO_DIR)?;
+    Command::new("git").arg("clone").arg(url).current_dir(REPO_DIR).status()?;
 
     let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?).unwrap();
 

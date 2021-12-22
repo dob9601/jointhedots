@@ -23,8 +23,7 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
     fs::create_dir_all(REPO_DIR).expect("Could not create temporary directory");
 
     println!("Attempting to clone repository");
-    let repo = Repository::clone(url.as_str(), REPO_DIR)?;
-    let mut index = repo.index()?;
+    Command::new("git").arg("clone").arg(url).arg(".").current_dir(REPO_DIR).status()?;
 
     let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?).unwrap();
 
@@ -44,8 +43,9 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         fs::copy(origin_path, target_path)?;
     }
 
-    add_and_commit_changes(&repo, "JTD Sync")?;
-    // repo.find_remote("origin").unwrap().push(&["*"], None)?;
+    Command::new("git").arg("add").arg("-A").current_dir(REPO_DIR).status()?;
+    Command::new("git").arg("commit").args(["-m", "JTD Sync"]).current_dir(REPO_DIR).status()?;
+
     Command::new("git")
         .arg("push")
         .current_dir(REPO_DIR)
