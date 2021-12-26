@@ -2,15 +2,16 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use question::{Answer, Question};
+use dialoguer::Confirm;
 
 use crate::cli::InstallSubcommandArgs;
 use crate::structs::Dotfile;
-use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, run_command_vec};
+use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, run_command_vec, get_theme};
 use crate::REPO_DIR;
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
+    let theme = get_theme();
 
     clone_repo(Path::new(REPO_DIR), &url)?;
 
@@ -39,17 +40,15 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
         let target_path = Path::new(target_path_str.as_ref());
 
         if target_path.exists() && !args.force {
-            let force = Question::new(
-                format!(
+            let force = Confirm::with_theme(&theme)
+                .with_prompt(format!(
                     "Dotfile \"{}\" already exists on disk. Overwrite?",
                     dotfile_name
-                )
-                .as_str(),
-            )
-            .default(Answer::NO)
-            .show_defaults()
-            .confirm();
-            if force == Answer::NO {
+                ))
+                .default(false)
+                .interact()
+                .unwrap();
+            if !force {
                 continue;
             }
         }

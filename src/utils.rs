@@ -1,5 +1,7 @@
 use std::{error::Error, process::Command, path::Path, fs::{self, File}};
 
+use dialoguer::{theme::{ColorfulTheme, Theme}, console::Style};
+
 use crate::{structs::Manifest, MANIFEST_PATH};
 
 pub const GITHUB_SSH_URL_PREFIX: &str = "git@github.com:";
@@ -40,4 +42,11 @@ pub fn get_manifest() -> Result<Manifest, Box<dyn Error>> {
     )
     .map_err(|_| "Could not parse manifest.")?;
     Ok(config)
+}
+
+pub fn get_theme() -> impl Theme {
+    ColorfulTheme {
+        values_style: Style::new().yellow().dim(),
+        ..ColorfulTheme::default()
+    }
 }
