@@ -26,7 +26,7 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 
 ## Example
 
-An example manifest file can be found [here]()
+An example manifest file can be found [here](https://github.com/dob9601/dotfiles/blob/master/jtd.yaml)
 
 ## Download
 
