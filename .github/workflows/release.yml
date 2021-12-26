@@ -20,6 +20,7 @@ jobs:
 
     - name: Bundle release artifacts
       run: |
+        mkdir release
         mv src/jtd-wrapper.sh release/jtd.sh
         mv target/release/jointhedots release/jtd
 
