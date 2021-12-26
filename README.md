@@ -31,7 +31,7 @@ An example manifest file can be found [here]()
 ## Download
 
 Grab the latest version [here](https://github.com/dob9601/jointhedots/releases/latest/download/jtd)!
-Or use the following 1 liner to 1-off run JTD
+Or use the following 1 liner to 1-off run JTD to install your dotfiles
 ```sh
-curl -sL jtd.danielobr.ie | sh
+curl -sL jtd.danielobr.ie | bash -s -- install USERNAME/REPONAME
 ```
