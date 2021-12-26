@@ -17,7 +17,10 @@ pub struct InstallSubcommandArgs {
     pub target_dotfiles: Vec<String>,
 
     #[clap(default_value = "GitHub", help = "Whether to source the repo from GitHub or GitLab", long = "source")]
-    pub source: String
+    pub source: String,
+
+    #[clap(help = "whether to overwrite existing configs without prompt", long = "force")]
+    pub force: bool
 }
 
 #[derive(clap::Args)]

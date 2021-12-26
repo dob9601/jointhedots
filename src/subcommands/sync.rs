@@ -1,15 +1,15 @@
 use std::{
     error::Error,
-    fs::{self, File},
+    fs,
     path::{Path, PathBuf},
     process::Command,
 };
 
 use crate::{
     cli::SyncSubcommandArgs,
-    structs::{Config, Dotfile},
-    utils::{get_repo_host_ssh_url, clone_repo},
-    MANIFEST_PATH, REPO_DIR,
+    structs::Dotfile,
+    utils::{get_repo_host_ssh_url, clone_repo, get_manifest},
+    REPO_DIR,
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
@@ -17,18 +17,16 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
 
     clone_repo(Path::new(REPO_DIR), &url)?;
 
-    let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?)
-        .map_err(|_| "Could not find manifest in repository.")?;
+    let manifest = get_manifest()?;
 
-    let mut dotfiles: Vec<(String, Dotfile)> = config
-        .into_iter()
-        .collect();
-    if !args.target_dotfiles.is_empty() {
-        dotfiles = dotfiles
-            .into_iter()
+    let dotfiles_iter = manifest.into_iter();
+    let dotfiles: Vec<(String, Dotfile)> = if !args.target_dotfiles.is_empty() {
+        dotfiles_iter
             .filter(|(dotfile_name, _)| args.target_dotfiles.contains(dotfile_name))
-            .collect();
-    }
+            .collect()
+    } else {
+        dotfiles_iter.collect()
+    };
 
     for (dotfile_name, dotfile) in dotfiles {
         println!("Syncing {}", dotfile_name);

@@ -22,7 +22,6 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 **WARNING: Be very careful about installing dotfiles via untrusted manifests. The pre_install and post_install blocks allow for (potentially malicious) code execution**
 
 ## Roadmap
-- Don't overwrite existing configs unless `--force` flag specified
 - Prevent syncing when the local dotfiles are from an older version of the repo available upstream
 
 ## Example

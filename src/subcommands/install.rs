@@ -1,38 +1,31 @@
 use std::error::Error;
-use std::fs::{self, File};
+use std::fs;
 use std::path::{Path, PathBuf};
 
+use question::{Answer, Question};
+
 use crate::cli::InstallSubcommandArgs;
-use crate::structs::{Dotfile, Config};
-use crate::utils::{clone_repo, get_repo_host_ssh_url, run_command_vec};
-use crate::{MANIFEST_PATH, REPO_DIR};
+use crate::structs::Dotfile;
+use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, run_command_vec};
+use crate::REPO_DIR;
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
 
     clone_repo(Path::new(REPO_DIR), &url)?;
 
-    let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?)
-        .map_err(|_| "Could not find manifest in repository.")?;
+    let manifest = get_manifest()?;
 
-    let mut dotfiles: Vec<(String, Dotfile)> = config
-        .into_iter()
-        .collect();
-    if !args.target_dotfiles.is_empty() {
-        dotfiles = dotfiles
-            .into_iter()
+    let dotfiles_iter = manifest.into_iter();
+    let dotfiles: Vec<(String, Dotfile)> = if !args.target_dotfiles.is_empty() {
+        dotfiles_iter
             .filter(|(dotfile_name, _)| args.target_dotfiles.contains(dotfile_name))
-            .collect();
-    }
+            .collect()
+    } else {
+        dotfiles_iter.collect()
+    };
 
     for (dotfile_name, dotfile) in dotfiles {
-        println!("Commencing install for {}", dotfile_name);
-
-        if let Some(pre_install) = &dotfile.pre_install {
-            println!("Running pre-install steps");
-            run_command_vec(pre_install)?;
-        }
-
         let mut origin_path_buf = PathBuf::from(REPO_DIR);
         origin_path_buf.push(&dotfile.file);
         let origin_path = origin_path_buf.as_path();
@@ -44,6 +37,29 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
                 .expect("Invalid unicode in target path"),
         );
         let target_path = Path::new(target_path_str.as_ref());
+
+        if target_path.exists() && !args.force {
+            let force = Question::new(
+                format!(
+                    "Dotfile \"{}\" already exists on disk. Overwrite?",
+                    dotfile_name
+                )
+                .as_str(),
+            )
+            .default(Answer::NO)
+            .show_defaults()
+            .confirm();
+            if force == Answer::NO {
+                continue;
+            }
+        }
+
+        println!("Commencing install for {}", dotfile_name);
+
+        if let Some(pre_install) = &dotfile.pre_install {
+            println!("Running pre-install steps");
+            run_command_vec(pre_install)?;
+        }
 
         println!(
             "Installing config file {} to location {}",

@@ -10,6 +10,7 @@ repository = "https://github.com/dob9601/jointhedots"
 
 [dependencies]
 clap = { version = "3.0.0-rc.7", features = ["derive"] }
+question = "0.2.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.8"
 shellexpand = "2.1.0"

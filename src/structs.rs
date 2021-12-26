@@ -3,12 +3,12 @@ use std::{collections::HashMap, path::Path};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Config {
+pub struct Manifest {
     #[serde(flatten)]
     data: HashMap<String, Dotfile>,
 }
 
-impl IntoIterator for Config {
+impl IntoIterator for Manifest {
     type Item = (String, Dotfile);
 
     type IntoIter = std::collections::hash_map::IntoIter<String, Dotfile>;

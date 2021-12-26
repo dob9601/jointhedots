@@ -1,4 +1,6 @@
-use std::{error::Error, process::Command, path::Path, fs};
+use std::{error::Error, process::Command, path::Path, fs::{self, File}};
+
+use crate::{structs::Manifest, MANIFEST_PATH};
 
 pub const GITHUB_SSH_URL_PREFIX: &str = "git@github.com:";
 pub const GITLAB_SSH_URL_PREFIX: &str = "git@gitlab.com:";
@@ -30,4 +32,12 @@ pub fn clone_repo(target_dir: &Path, url: &str) -> Result<(), Box<dyn Error>> {
     println!("Attempting to clone repository");
     Command::new("git").arg("clone").arg(url).arg(".").current_dir(target_dir).status()?;
     Ok(())
+}
+
+pub fn get_manifest() -> Result<Manifest, Box<dyn Error>> {
+    let config: Manifest = serde_yaml::from_reader(
+        File::open(MANIFEST_PATH).map_err(|_| "Could not find manifest in repository.")?,
+    )
+    .map_err(|_| "Could not parse manifest.")?;
+    Ok(config)
 }
