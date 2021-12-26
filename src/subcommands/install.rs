@@ -3,18 +3,29 @@ use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
 use crate::cli::InstallSubcommandArgs;
-use crate::structs::Config;
-use crate::utils::{run_command_vec, get_repo_host_ssh_url, clone_repo};
-use crate::{REPO_DIR, MANIFEST_PATH};
+use crate::structs::{Dotfile, Config};
+use crate::utils::{clone_repo, get_repo_host_ssh_url, run_command_vec};
+use crate::{MANIFEST_PATH, REPO_DIR};
 
-pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>>{
+pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
 
     clone_repo(Path::new(REPO_DIR), &url)?;
 
-    let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?).unwrap();
+    let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?)
+        .map_err(|_| "Could not find manifest in repository.")?;
 
-    for (dotfile_name, dotfile) in config.into_iter() {
+    let mut dotfiles: Vec<(String, Dotfile)> = config
+        .into_iter()
+        .collect();
+    if !args.target_configs.is_empty() {
+        dotfiles = dotfiles
+            .into_iter()
+            .filter(|(dotfile_name, _)| args.target_configs.contains(dotfile_name))
+            .collect();
+    }
+
+    for (dotfile_name, dotfile) in dotfiles {
         println!("Commencing install for {}", dotfile_name);
 
         if let Some(pre_install) = &dotfile.pre_install {

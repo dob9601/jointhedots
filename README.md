@@ -23,7 +23,6 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 
 ## Roadmap
 - Don't overwrite existing configs unless `--force` flag specified
-- Allow for installation of specific configs as opposed to all of them
 - Prevent syncing when the local dotfiles are from an older version of the repo available upstream
 
 ## Example

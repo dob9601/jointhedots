@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     cli::SyncSubcommandArgs,
-    structs::Config,
+    structs::{Config, Dotfile},
     utils::{get_repo_host_ssh_url, clone_repo},
     MANIFEST_PATH, REPO_DIR,
 };
@@ -17,9 +17,20 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
 
     clone_repo(Path::new(REPO_DIR), &url)?;
 
-    let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?).unwrap();
+    let config: Config = serde_yaml::from_reader(File::open(MANIFEST_PATH)?)
+        .map_err(|_| "Could not find manifest in repository.")?;
 
-    for (dotfile_name, dotfile) in config.into_iter() {
+    let mut dotfiles: Vec<(String, Dotfile)> = config
+        .into_iter()
+        .collect();
+    if !args.target_configs.is_empty() {
+        dotfiles = dotfiles
+            .into_iter()
+            .filter(|(dotfile_name, _)| args.target_configs.contains(dotfile_name))
+            .collect();
+    }
+
+    for (dotfile_name, dotfile) in dotfiles {
         println!("Syncing {}", dotfile_name);
 
         let mut target_path_buf = PathBuf::from(REPO_DIR);
