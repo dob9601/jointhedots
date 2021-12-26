@@ -135,7 +135,7 @@ dependencies = [
 
 [[package]]
 name = "jointhedots"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "clap",
  "question",

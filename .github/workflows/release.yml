@@ -18,8 +18,13 @@ jobs:
     - name: Build
       run: cargo build --release
 
+    - name: Rename wrapper
+      run: mv src/jtd-wrapper.sh src/jtd.sh
+
     - name: Publish
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: target/release/jointhedots
+        files:
+          target/release/jointhedots
+          src/jtd.sh
