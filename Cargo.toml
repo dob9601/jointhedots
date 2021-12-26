@@ -1,6 +1,6 @@
 [package]
 name = "jointhedots"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2018"
 license = "MIT"
 description = "A simple git-based dotfile manager written entirely in Rust!"

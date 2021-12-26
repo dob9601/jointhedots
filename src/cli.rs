@@ -13,7 +13,8 @@ pub struct InstallSubcommandArgs {
     #[clap(help = "The location of the repository in the form USERNAME/REPONAME")]
     pub repository: String,
 
-    pub target_configs: Vec<String>,
+    #[clap(help = "The dotfiles to install. If unspecified, install all of them")]
+    pub target_dotfiles: Vec<String>,
 
     #[clap(default_value = "GitHub", help = "Whether to source the repo from GitHub or GitLab", long = "source")]
     pub source: String
@@ -25,7 +26,8 @@ pub struct SyncSubcommandArgs {
     #[clap(help = "The location of the repository in the form USERNAME/REPONAME")]
     pub repository: String,
 
-    pub target_configs: Vec<String>,
+    #[clap(help = "The dotfiles to sync. If unspecified, sync all of them")]
+    pub target_dotfiles: Vec<String>,
 
     #[clap(default_value = "GitHub", help = "Whether to source the repo from GitHub or GitLab", long = "source")]
     pub source: String

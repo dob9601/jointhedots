@@ -18,10 +18,10 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     let mut dotfiles: Vec<(String, Dotfile)> = config
         .into_iter()
         .collect();
-    if !args.target_configs.is_empty() {
+    if !args.target_dotfiles.is_empty() {
         dotfiles = dotfiles
             .into_iter()
-            .filter(|(dotfile_name, _)| args.target_configs.contains(dotfile_name))
+            .filter(|(dotfile_name, _)| args.target_dotfiles.contains(dotfile_name))
             .collect();
     }
 
