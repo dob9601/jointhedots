@@ -30,4 +30,8 @@ An example manifest file can be found [here]()
 
 ## Download
 
-Grab the latest version [here](https://github.com/dob9601/jointhedots/releases/latest/download/jointhedots)!
+Grab the latest version [here](https://github.com/dob9601/jointhedots/releases/latest/download/jtd)!
+Or use the following 1 liner to 1-off run JTD
+```sh
+curl -sL jtd.danielobr.ie | sh
+```
