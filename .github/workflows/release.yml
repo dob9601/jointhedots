@@ -18,13 +18,14 @@ jobs:
     - name: Build
       run: cargo build --release
 
-    - name: Rename wrapper
-      run: mv src/jtd-wrapper.sh src/jtd.sh
+    - name: Bundle release artifacts
+      run: |
+        mv src/jtd-wrapper.sh release/jtd.sh
+        mv target/release/jointhedots release/jtd
 
     - name: Publish
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files:
-          target/release/jointhedots
-          src/jtd.sh
+        fail_on_unmatched_files: true
+        files: release/*
