@@ -1,4 +1,4 @@
-use clap::{AppSettings, Parser};
+use clap::Parser;
 
 #[derive(Parser, Debug)]
 #[clap(name = "jointhedots", bin_name = "jtd", about)]
