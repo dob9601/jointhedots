@@ -40,7 +40,7 @@ pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let force = Confirm::with_theme(&theme)
-        .with_prompt("Overwrite existing dotfiles")
+        .with_prompt("Overwrite existing dotfiles without prompting")
         .default(false)
         .wait_for_newline(true)
         .interact()
