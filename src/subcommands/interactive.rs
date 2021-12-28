@@ -1,3 +1,4 @@
+use console::style;
 use dialoguer::{Confirm, Input, Select};
 use regex::Regex;
 use std::error::Error;
@@ -8,12 +9,12 @@ use super::install_subcommand_handler;
 
 pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
     println!("\
-        \tWelcome to JTD! \n\
-        \tThis wizard will guide you through installing your preconfigured dotfiles repo. \n\
-        \tIf you have yet to configure your dotfiles, view the readme for instructions on how to do so \n\n\
-        \t\tReadme: https://github.com/dob9601/jointhedots \n\
-        \t\tExample Manifest: https://github.com/dob9601/dotfiles/blob/master/jtd.yaml
-    ");
+        Welcome to JTD! \n\
+        This wizard will guide you through installing your preconfigured dotfiles repo. \n\
+        If you haven't yet added a manifest to your dotfile repo, view the README for instructions on how to do so \n\n\
+        \t{} https://github.com/dob9601/jointhedots \n\
+        \t{} https://github.com/dob9601/dotfiles/blob/master/jtd.yaml
+    ", style("README:").cyan(), style("Example Manifest:").cyan());
 
     let theme = get_theme();
 

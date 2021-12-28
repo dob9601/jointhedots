@@ -31,8 +31,8 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
         .iter()
         .any(|(_, dotfile)| dotfile.pre_install.is_some() || dotfile.post_install.is_some())
     {
-        println!("{}", style("WARNING: This manifest contains pre_install and/or post_install \
-                steps, are you sure you trust this manifest?").yellow().dim());
+        println!("{}", style("! This manifest contains pre_install and/or post_install \
+                steps, are you sure you trust this manifest?").yellow());
         let trust = Confirm::with_theme(&theme)
             .with_prompt("Trust this repository?")
             .default(false)

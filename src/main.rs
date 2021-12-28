@@ -10,7 +10,7 @@ fn main() {
         JoinTheDots::Interactive(_) => subcommands::interactive_subcommand_handler(),
     };
     if let Err(error) = result {
-        println!("{} {}", style("Error:").red().dim(), error.to_string().replace("\n", "\n\t"));
+        println!("{} {}", style("Error:").red().dim(), error.to_string().replace("\n", "\n       "));
         exit(1);
     }
 }
