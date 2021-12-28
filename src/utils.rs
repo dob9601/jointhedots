@@ -32,7 +32,11 @@ pub fn clone_repo(target_dir: &Path, url: &str) -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(target_dir).expect("Could not create temporary directory");
 
     println!("Attempting to clone repository");
-    Command::new("git").arg("clone").arg(url).arg(".").current_dir(target_dir).status()?;
+    let output = Command::new("git").arg("clone").arg(url).arg(".").current_dir(target_dir).output()?;
+    if !output.status.success() {
+        let output = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Failed to clone repository: {}", output).into());
+    }
     Ok(())
 }
 

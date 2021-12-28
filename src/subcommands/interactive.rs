@@ -50,6 +50,7 @@ pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
         target_dotfiles: vec![],
         source: repo_sources[source_index].to_string(),
         force,
+        trust: false
     };
 
     install_subcommand_handler(install_args)?;

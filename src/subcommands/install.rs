@@ -2,11 +2,12 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use console::style;
 use dialoguer::Confirm;
 
 use crate::cli::InstallSubcommandArgs;
 use crate::structs::Dotfile;
-use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, run_command_vec, get_theme};
+use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec};
 use crate::REPO_DIR;
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
@@ -25,6 +26,24 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     } else {
         dotfiles_iter.collect()
     };
+
+    if dotfiles
+        .iter()
+        .any(|(_, dotfile)| dotfile.pre_install.is_some() || dotfile.post_install.is_some())
+    {
+        println!("{}", style("WARNING: This manifest contains pre_install and/or post_install \
+                steps, are you sure you trust this manifest?").yellow().dim());
+        let trust = Confirm::with_theme(&theme)
+            .with_prompt("Trust this repository?")
+            .default(false)
+            .wait_for_newline(true)
+            .interact()
+            .unwrap();
+
+        if !trust {
+            return Err("Aborting due to untrusted dotfile manifest".into());
+        }
+    }
 
     for (dotfile_name, dotfile) in dotfiles {
         let mut origin_path_buf = PathBuf::from(REPO_DIR);

@@ -25,10 +25,16 @@ pub struct InstallSubcommandArgs {
     pub source: String,
 
     #[clap(
-        help = "whether to overwrite existing configs without prompt",
+        help = "Whether to overwrite existing configs without prompt",
         long = "force"
     )]
     pub force: bool,
+
+    #[clap(
+        help = "Whether to run any pre_install/post_install commands without prompting",
+        long = "trust"
+    )]
+    pub trust: bool,
 }
 
 #[derive(clap::Args, Debug)]
