@@ -10,23 +10,51 @@ OPTIONS:
     -h, --help    Print help information
 
 SUBCOMMANDS:
-    help       Print this message or the help of the given subcommand(s)
-    install    Install a specified JTD repository
-    sync       Sync the currently installed JTD repository with the provided remote repo.
+    help           Print this message or the help of the given subcommand(s)
+    install        Install a specified JTD repository
+    interactive    Interactively install dotfiles
+    sync           Sync the currently installed JTD repository with the provided remote repo.
 ```
 
 ## About
 
 jointhedots works by reading a "jtd.yaml" manifest file located within your dotfile repository. The manifest contains a mapping of file to installed location (amongst other things), allowing for JTD to automatically install configurations. `pre_install` and `post_install` commands can also be specified, allowing for additional control over installation.
 
-**WARNING: Be very careful about installing dotfiles via untrusted manifests. The pre_install and post_install blocks allow for (potentially malicious) code execution**
+**WARNING: Be very careful about installing dotfiles via untrusted manifests. The pre_install and post_install blocks allow for (potentially malicious) code execution**. JTD will prompt you to confirm you trust a manifest if it contains install steps.
 
 ## Roadmap
 - Prevent syncing when the local dotfiles are from an older version of the repo available upstream
+- Ability to specify which manifest to use
 
 ## Example
 
-An example manifest file can be found [here](https://github.com/dob9601/dotfiles/blob/master/jtd.yaml)
+An example manifest file is shown below:
+```yaml
+nvim:
+  file: init.vim
+  pre_install:
+    - sudo apt install nvim
+  target: ~/.config/nvim/init.vim
+
+nvim-coc:
+  file: coc-settings.json
+  target: ~/.config/nvim/coc-settings.json
+
+kitty:
+  file: kitty.conf
+  target: ~/.config/kitty/kitty.conf
+
+kitty-theme:
+  file: theme.conf
+  target: ~/.config/kitty/theme.conf
+
+fish:
+  file: config.fish
+  target: ~/.config/fish/config.fish
+```
+The manifest file should be located in the root of the repository and called "jtd.yaml".
+
+A JSON Schema for the manifest is available [here](https://github.com/dob9601/jointhedots/blob/master/src/dotfile_schema.json). This can be used in conjunction with certain plugins to provide language server support for jtd manifests.
 
 ## Download
 
