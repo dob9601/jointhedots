@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Manifest {
     #[serde(flatten)]
     data: HashMap<String, Dotfile>,
@@ -18,7 +18,7 @@ impl IntoIterator for Manifest {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Dotfile {
     pub file: String,
     pub target: Box<Path>,

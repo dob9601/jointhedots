@@ -3,7 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use console::style;
-use dialoguer::Confirm;
+use dialoguer::{Confirm, MultiSelect};
 
 use crate::cli::InstallSubcommandArgs;
 use crate::structs::Dotfile;
@@ -18,23 +18,47 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
     let manifest = get_manifest()?;
 
-    let dotfiles_iter = manifest.into_iter();
-    let dotfiles: Vec<(String, Dotfile)> = if !args.target_dotfiles.is_empty() {
-        dotfiles_iter
+    let dotfiles: Vec<(String, Dotfile)> = if args.all {
+        manifest.into_iter().collect()
+    } else if !args.target_dotfiles.is_empty() {
+        manifest
+            .into_iter()
             .filter(|(dotfile_name, _)| args.target_dotfiles.contains(dotfile_name))
             .collect()
     } else {
-        dotfiles_iter.collect()
+        let dotfile_names = manifest
+            .clone()
+            .into_iter()
+            .map(|pair| pair.0)
+            .collect::<Vec<String>>();
+        let selected = MultiSelect::with_theme(&theme)
+            .with_prompt("Select the dotfiles you wish to install. Use \"SPACE\" to select and \"ENTER\" to proceed.")
+            .items(&dotfile_names)
+            .interact()
+            .unwrap();
+
+        manifest
+            .into_iter()
+            .enumerate()
+            .filter(|(index, (_, _))| selected.contains(index))
+            .map(|(_, (name, dotfile))| (name, dotfile))
+            .collect()
     };
 
     if dotfiles
         .iter()
         .any(|(_, dotfile)| dotfile.pre_install.is_some() || dotfile.post_install.is_some())
     {
-        println!("{}", style("! This manifest contains pre_install and/or post_install \
-                steps, are you sure you trust this manifest?").yellow());
+        println!(
+            "{}",
+            style(
+                "! This manifest contains pre_install and/or post_install \
+                steps, are you sure you trust this manifest?"
+            )
+            .yellow()
+        );
         let trust = Confirm::with_theme(&theme)
-            .with_prompt("Trust this repository?")
+            .with_prompt("Trust this manifest?")
             .default(false)
             .wait_for_newline(true)
             .interact()

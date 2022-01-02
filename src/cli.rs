@@ -14,27 +14,40 @@ pub struct InstallSubcommandArgs {
     #[clap(help = "The location of the repository in the form USERNAME/REPONAME")]
     pub repository: String,
 
-    #[clap(help = "The dotfiles to install. If unspecified, install all of them")]
+    #[clap(
+        help = "The dotfiles to install. If unspecified, install all of them",
+        conflicts_with = "all"
+    )]
     pub target_dotfiles: Vec<String>,
 
     #[clap(
         default_value = "GitHub",
         help = "Whether to source the repo from GitHub or GitLab",
-        long = "source"
+        long = "source",
+        short = 's'
     )]
     pub source: String,
 
     #[clap(
         help = "Whether to overwrite existing configs without prompt",
-        long = "force"
+        long = "force",
+        short = 'f'
     )]
     pub force: bool,
 
     #[clap(
         help = "Whether to run any pre_install/post_install commands without prompting",
-        long = "trust"
+        long = "trust",
+        short = 't'
     )]
     pub trust: bool,
+
+    #[clap(
+        help = "Whether to install all dotfiles in the config",
+        long = "all",
+        short = 'a'
+    )]
+    pub all: bool,
 }
 
 #[derive(clap::Args, Debug)]
