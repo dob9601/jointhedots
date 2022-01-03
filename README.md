@@ -27,6 +27,7 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 ## Roadmap
 | Feature                                                                              | Implemented |
 |--------------------------------------------------------------------------------------|-------------|
+| :---                                                                                 |    :---:    |
 | Sync local changes to dotfiles with remote repo                                      |      ✔      |
 | Interactive mode                                                                     |      ✔      |
 | Selectively install only some dotfiles                                               |      ✔      |
@@ -35,7 +36,6 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 | Prevent syncing when the local dotfiles are from an older version of the remote repo |             |
 | Ability to specify which manifest to use in (multiple manifest support)              |             |
 | Support for non-GitHub/GitLab repos                                                  |             |
-|--------------------------------------------------------------------------------------|-------------|
 
 ## Example
 
