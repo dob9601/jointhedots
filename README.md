@@ -26,7 +26,6 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 
 ## Roadmap
 | Feature                                                                              | Implemented |
-|--------------------------------------------------------------------------------------|-------------|
 | :---                                                                                 |    :---:    |
 | Sync local changes to dotfiles with remote repo                                      |      ✔      |
 | Interactive mode                                                                     |      ✔      |
