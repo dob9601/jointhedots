@@ -25,14 +25,19 @@ pub const SPINNER_FRAMES: &[&str] = &[
 ];
 pub const SPINNER_RATE: u64 = 48;
 
-pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
+pub fn run_command_vec(command_vec: &[String]) -> Result<(String, String), Box<dyn Error>> {
+    let mut stdout = String::new();
+    let mut stderr = String::new();
+
     for command in command_vec.iter() {
         let command_vec: Vec<&str> = command.split(' ').collect();
-        Command::new(command_vec[0])
+        let output = Command::new(command_vec[0])
             .args(&command_vec[1..])
-            .spawn()?;
+            .output()?;
+        stdout.push_str(&String::from_utf8_lossy(&output.stdout));
+        stderr.push_str(&String::from_utf8_lossy(&output.stderr));
     }
-    Ok(())
+    Ok((stdout, stderr))
 }
 
 pub fn get_repo_host_ssh_url(host: &str) -> Result<&str, Box<dyn Error>> {

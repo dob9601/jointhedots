@@ -100,7 +100,9 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
         if let Some(pre_install) = &dotfile.pre_install {
             println!("Running pre-install steps");
-            run_command_vec(pre_install)?;
+            let (stdout, stderr) = run_command_vec(pre_install)?;
+            println!("{}:\n| {}", style("Stdout").cyan(), stdout.replace("\n", "\n| "));
+            println!("{}:\n| {}", style("Stderr").red(), stderr.replace("\n", "\n| "));
         }
 
         println!(
@@ -117,7 +119,9 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
         if let Some(post_install) = &dotfile.post_install {
             println!("Running post-install steps");
-            run_command_vec(post_install)?;
+            let (stdout, stderr) = run_command_vec(post_install)?;
+            println!("STDOUT:\n| {}", stdout.replace("\n", "\n| "));
+            println!("STDERR:\n| {}", stderr.replace("\n", "\n| "));
         }
     }
     Ok(())
