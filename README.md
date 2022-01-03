@@ -25,16 +25,17 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 **WARNING: Be very careful about installing dotfiles via untrusted manifests. The pre_install and post_install blocks allow for (potentially malicious) code execution**. JTD will prompt you to confirm you trust a manifest if it contains install steps.
 
 ## Roadmap
-| Feature                                                                              | Implemented |
-| :---                                                                                 |    :---:    |
-| Sync local changes to dotfiles with remote repo                                      |      ✔      |
-| Interactive mode                                                                     |      ✔      |
-| Selectively install only some dotfiles                                               |      ✔      |
-| JSON Schema for manifest files                                                       |      ✔      |
-| Selectively sync only some dotfile changes                                           |             |
-| Prevent syncing when the local dotfiles are from an older version of the remote repo |             |
-| Ability to specify which manifest to use in (multiple manifest support)              |             |
-| Support for non-GitHub/GitLab repos                                                  |             |
+| Feature                                                                              | Implemented |       Notes        |
+| :---                                                                                 |    :---:    |                    |
+| Sync local changes to dotfiles with remote repo                                      |      ✔      |                    |
+| Interactive mode                                                                     |      ✔      |                    |
+| Selectively install only some dotfiles                                               |      ✔      |                    |
+| JSON Schema for manifest files                                                       |      ✔      |                    |
+| Host latest version somewhere that can be curled                                     |      ✔      | `jtd.danielobr.ie` |
+| Selectively sync only some dotfile changes                                           |             |                    |
+| Prevent syncing when the local dotfiles are from an older version of the remote repo |             |                    |
+| Ability to specify which manifest to use in (multiple manifest support)              |             |                    |
+| Support for non-GitHub/GitLab repos                                                  |             |                    |
 
 ## Example
 
