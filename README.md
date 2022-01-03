@@ -33,6 +33,7 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 | JSON Schema for manifest files                                                       |      ✔      |                    |
 | Host latest version somewhere that can be curled                                     |      ✔      | `jtd.danielobr.ie` |
 | Selectively sync only some dotfile changes                                           |             |                    |
+| Use `git2` as opposed to `Command::new("git")`                                       |             |                    |
 | Prevent syncing when the local dotfiles are from an older version of the remote repo |             |                    |
 | Ability to specify which manifest to use in (multiple manifest support)              |             |                    |
 | Support for non-GitHub/GitLab repos                                                  |             |                    |
