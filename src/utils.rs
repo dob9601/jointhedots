@@ -29,7 +29,8 @@ pub fn run_command_vec(command_vec: &[String]) -> Result<(String, String), Box<d
     let mut stdout = String::new();
     let mut stderr = String::new();
 
-    for command in command_vec.iter() {
+    for (stage, command) in command_vec.iter().enumerate() {
+        println!("{} {}", style(format!("Running stage #{}:", stage)).cyan(), command);
         let command_vec: Vec<&str> = command.split(' ').collect();
         let output = Command::new(command_vec[0])
             .args(&command_vec[1..])
@@ -50,9 +51,9 @@ pub fn get_repo_host_ssh_url(host: &str) -> Result<&str, Box<dyn Error>> {
 
 pub fn clone_repo(target_dir: &Path, url: &str) -> Result<(), Box<dyn Error>> {
     if Path::new(target_dir).exists() {
-        fs::remove_dir_all(target_dir).expect("Could not clear temporary directory");
+        fs::remove_dir_all(target_dir).map_err(|err| format!("Could not clear temporary directory: {}", err))?;
     }
-    fs::create_dir_all(target_dir).expect("Could not create temporary directory");
+    fs::create_dir_all(target_dir).map_err(|err| format!("Could not create temporary directory: {}", err))?;
 
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(SPINNER_RATE);
@@ -94,4 +95,17 @@ pub fn get_theme() -> impl Theme {
         values_style: Style::new().yellow().dim(),
         ..ColorfulTheme::default()
     }
+}
+
+pub fn get_head_hash(target_dir: &str) -> Result<String, Box<dyn Error>> {
+    let bytes = Command::new("git").args(["rev-parse", "HEAD"])
+        .current_dir(target_dir)
+        .output()?.stdout;
+    Ok(String::from_utf8_lossy(&bytes).to_string())
+
+}
+
+pub fn is_in_past(commit_hash: &str) -> Result<bool, Box<dyn Error>> {
+    let command = Command::new("git").args(["merge-base", "--is-ancestor", commit_hash, "HEAD"]).output()?;
+    Ok(command.status.success())
 }

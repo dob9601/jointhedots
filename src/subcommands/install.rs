@@ -1,5 +1,6 @@
 use std::error::Error;
-use std::fs;
+use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use console::style;
@@ -7,7 +8,7 @@ use dialoguer::{Confirm, MultiSelect};
 
 use crate::cli::InstallSubcommandArgs;
 use crate::structs::Dotfile;
-use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec};
+use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec, get_head_hash};
 use crate::REPO_DIR;
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
@@ -124,5 +125,11 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
             println!("STDERR:\n| {}", stderr.replace("\n", "\n| "));
         }
     }
+    let data_path = shellexpand::tilde("~/.local/share/jointhedots/");
+    fs::create_dir_all(data_path.as_ref())?;
+
+    let mut head_file = File::create(data_path.to_string() + "HEAD")?;
+    head_file.write_all(get_head_hash(REPO_DIR)?.as_bytes())?;
+
     Ok(())
 }
