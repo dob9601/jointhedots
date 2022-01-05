@@ -2,7 +2,7 @@ use std::{
     error::Error,
     fs::{self, File},
     path::Path,
-    process::Command,
+    process::Command, io::{self, Write},
 };
 
 use console::style;
@@ -25,20 +25,18 @@ pub const SPINNER_FRAMES: &[&str] = &[
 ];
 pub const SPINNER_RATE: u64 = 48;
 
-pub fn run_command_vec(command_vec: &[String]) -> Result<(String, String), Box<dyn Error>> {
-    let mut stdout = String::new();
-    let mut stderr = String::new();
-
+pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
     for (stage, command) in command_vec.iter().enumerate() {
-        println!("{} {}", style(format!("Running stage #{}:", stage)).cyan(), command);
+        println!("{} {}", style(format!("Step #{}:", stage)).cyan(), command);
+        io::stdout().flush()?;
+
         let command_vec: Vec<&str> = command.split(' ').collect();
-        let output = Command::new(command_vec[0])
+        Command::new(command_vec[0])
             .args(&command_vec[1..])
-            .output()?;
-        stdout.push_str(&String::from_utf8_lossy(&output.stdout));
-        stderr.push_str(&String::from_utf8_lossy(&output.stderr));
+            .spawn()?
+            .wait_with_output()?;
     }
-    Ok((stdout, stderr))
+    Ok(())
 }
 
 pub fn get_repo_host_ssh_url(host: &str) -> Result<&str, Box<dyn Error>> {
