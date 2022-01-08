@@ -37,6 +37,8 @@ jointhedots works by reading a "jtd.yaml" manifest file located within your dotf
 | Prevent syncing when the local dotfiles are from an older version of the remote repo |             |                    |
 | Ability to specify which manifest to use in (multiple manifest support)              |             |                    |
 | Support for non-GitHub/GitLab repos                                                  |             |                    |
+| Ability to manually specify commit message for JTD sync                              |             |                    |
+| More detailed default commit messages for JTD sync (list the changed files)          |             |                    |
 
 ## Example
 
