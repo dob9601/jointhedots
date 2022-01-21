@@ -9,13 +9,12 @@ use crate::{
     cli::SyncSubcommandArgs,
     structs::Dotfile,
     utils::{get_repo_host_ssh_url, clone_repo, get_manifest},
-    REPO_DIR,
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
 
-    clone_repo(Path::new(REPO_DIR), &url)?;
+    let repo = clone_repo(&url)?;
 
     let manifest = get_manifest()?;
 
@@ -31,7 +30,7 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
     for (dotfile_name, dotfile) in dotfiles {
         println!("Syncing {}", dotfile_name);
 
-        let mut target_path_buf = PathBuf::from(REPO_DIR);
+        let mut target_path_buf = PathBuf::from(repo.path());
         target_path_buf.push(&dotfile.file);
         let target_path = target_path_buf.as_path();
 
@@ -46,12 +45,12 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         fs::copy(origin_path, target_path)?;
     }
 
-    Command::new("git").arg("add").arg("-A").current_dir(REPO_DIR).status()?;
-    Command::new("git").arg("commit").args(["-m", "JTD Sync"]).current_dir(REPO_DIR).status()?;
+    Command::new("git").arg("add").arg("-A").current_dir(repo.path()).status()?;
+    Command::new("git").arg("commit").args(["-m", "JTD Sync"]).current_dir(repo.path()).status()?;
 
     Command::new("git")
         .arg("push")
-        .current_dir(REPO_DIR)
+        .current_dir(repo.path())
         .status()?;
     Ok(())
 }

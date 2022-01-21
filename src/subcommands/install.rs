@@ -8,14 +8,13 @@ use dialoguer::{Confirm, MultiSelect};
 
 use crate::cli::InstallSubcommandArgs;
 use crate::structs::Dotfile;
-use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec, get_head_hash};
-use crate::REPO_DIR;
+use crate::utils::{get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec, get_head_hash, clone_repo};
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
     let theme = get_theme();
 
-    clone_repo(Path::new(REPO_DIR), &url)?;
+    let repo = clone_repo(&url)?;
 
     let manifest = get_manifest()?;
 
@@ -71,7 +70,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     }
 
     for (dotfile_name, dotfile) in dotfiles {
-        let mut origin_path_buf = PathBuf::from(REPO_DIR);
+        let mut origin_path_buf = PathBuf::from(repo.path());
         origin_path_buf.push(&dotfile.file);
         let origin_path = origin_path_buf.as_path();
 
@@ -125,7 +124,9 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     fs::create_dir_all(data_path.as_ref())?;
 
     let mut head_file = File::create(data_path.to_string() + "HEAD")?;
-    head_file.write_all(get_head_hash(REPO_DIR)?.as_bytes())?;
+    println!("{}", repo.head()?.target().unwrap().to_string());
+
+    // head_file.write_all(get_head_hash(repo.path())?.as_bytes())?;
 
     Ok(())
 }

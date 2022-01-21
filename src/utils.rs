@@ -1,8 +1,8 @@
 use std::{
     error::Error,
-    fs::{self, File},
-    path::Path,
-    process::Command, io::{self, Write},
+    fs::File,
+    io::{self, Write},
+    process::Command,
 };
 
 use console::style;
@@ -10,7 +10,9 @@ use dialoguer::{
     console::Style,
     theme::{ColorfulTheme, Theme},
 };
-use indicatif::{ProgressStyle, ProgressBar};
+use git2::{Cred, RemoteCallbacks};
+use indicatif::{ProgressBar, ProgressStyle};
+use tempfile::tempdir;
 
 use crate::{structs::Manifest, MANIFEST_PATH};
 
@@ -21,7 +23,7 @@ pub const SPINNER_FRAMES: &[&str] = &[
     "⢀⠀", "⡀⠀", "⠄⠀", "⢂⠀", "⡂⠀", "⠅⠀", "⢃⠀", "⡃⠀", "⠍⠀", "⢋⠀", "⡋⠀", "⠍⠁", "⢋⠁", "⡋⠁", "⠍⠉", "⠋⠉",
     "⠋⠉", "⠉⠙", "⠉⠙", "⠉⠩", "⠈⢙", "⠈⡙", "⢈⠩", "⡀⢙", "⠄⡙", "⢂⠩", "⡂⢘", "⠅⡘", "⢃⠨", "⡃⢐", "⠍⡐", "⢋⠠",
     "⡋⢀", "⠍⡁", "⢋⠁", "⡋⠁", "⠍⠉", "⠋⠉", "⠋⠉", "⠉⠙", "⠉⠙", "⠉⠩", "⠈⢙", "⠈⡙", "⠈⠩", "⠀⢙", "⠀⡙", "⠀⠩",
-    "⠀⢘", "⠀⡘", "⠀⠨", "⠀⢐", "⠀⡐", "⠀⠠", "⠀⢀", "⠀⡀", "  ", "  "
+    "⠀⢘", "⠀⡘", "⠀⠨", "⠀⢐", "⠀⡐", "⠀⠠", "⠀⢀", "⠀⡀", "  ", "  ",
 ];
 pub const SPINNER_RATE: u64 = 48;
 
@@ -47,37 +49,32 @@ pub fn get_repo_host_ssh_url(host: &str) -> Result<&str, Box<dyn Error>> {
     }
 }
 
-pub fn clone_repo(target_dir: &Path, url: &str) -> Result<(), Box<dyn Error>> {
-    if Path::new(target_dir).exists() {
-        fs::remove_dir_all(target_dir).map_err(|err| format!("Could not clear temporary directory: {}", err))?;
-    }
-    fs::create_dir_all(target_dir).map_err(|err| format!("Could not create temporary directory: {}", err))?;
-
+pub fn clone_repo(url: &str) -> Result<git2::Repository, Box<dyn Error>> {
     let pb = ProgressBar::new_spinner();
     pb.enable_steady_tick(SPINNER_RATE);
     pb.set_style(
         ProgressStyle::default_spinner()
-            // For more spinners check out the cli-spinners project:
-            // https://github.com/sindresorhus/cli-spinners/blob/master/spinners.json
             .tick_strings(SPINNER_FRAMES)
             .template("{spinner:.blue} {msg}"),
     );
     pb.set_message("Attempting to clone repository");
-    let output = Command::new("git")
-        .arg("clone")
-        .arg(url)
-        .arg(".")
-        .current_dir(target_dir)
-        .output()?;
 
-    if !output.status.success() {
-        pb.finish();
-        let output = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Failed to clone repository: {}", output).into());
-    }
-    pb.finish_and_clear();
+    let mut callbacks = RemoteCallbacks::new();
+    callbacks.credentials(|_url, username_from_url, _allowed_types| {
+        Cred::ssh_key_from_agent(username_from_url.unwrap())
+    });
+
+    let mut fo = git2::FetchOptions::new();
+    fo.remote_callbacks(callbacks);
+
+    let mut builder = git2::build::RepoBuilder::new();
+    builder.fetch_options(fo);
+
+    // Clone the project.
+    let repo_dir = tempdir()?;
+    let repo = builder.clone(url, repo_dir.path())?;
     println!("{}", style("✔ Successfully cloned repository!").green());
-    Ok(())
+    Ok(repo)
 }
 
 pub fn get_manifest() -> Result<Manifest, Box<dyn Error>> {
@@ -96,14 +93,17 @@ pub fn get_theme() -> impl Theme {
 }
 
 pub fn get_head_hash(target_dir: &str) -> Result<String, Box<dyn Error>> {
-    let bytes = Command::new("git").args(["rev-parse", "HEAD"])
+    let bytes = Command::new("git")
+        .args(["rev-parse", "HEAD"])
         .current_dir(target_dir)
-        .output()?.stdout;
+        .output()?
+        .stdout;
     Ok(String::from_utf8_lossy(&bytes).to_string())
-
 }
 
 pub fn is_in_past(commit_hash: &str) -> Result<bool, Box<dyn Error>> {
-    let command = Command::new("git").args(["merge-base", "--is-ancestor", commit_hash, "HEAD"]).output()?;
+    let command = Command::new("git")
+        .args(["merge-base", "--is-ancestor", commit_hash, "HEAD"])
+        .output()?;
     Ok(command.status.success())
 }
