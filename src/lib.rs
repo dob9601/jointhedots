@@ -1,8 +1,7 @@
-pub const MANIFEST_PATH: &str = "/tmp/jtd/jtd.yaml";
-
 pub mod structs;
 pub mod cli;
 pub mod utils;
+pub mod git;
 
 pub mod subcommands {
     mod sync;

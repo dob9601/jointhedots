@@ -2,7 +2,7 @@ use std::{
     error::Error,
     fs::File,
     io::{self, Write},
-    process::Command,
+    process::Command, path::Path,
 };
 
 use console::style;
@@ -11,10 +11,8 @@ use dialoguer::{
     theme::{ColorfulTheme, Theme}, Input, Password,
 };
 use git2_credentials::{CredentialHandler, CredentialUI};
-use indicatif::{ProgressBar, ProgressStyle};
-use tempfile::tempdir;
 
-use crate::{structs::Manifest, MANIFEST_PATH};
+use crate::structs::Manifest;
 
 pub const GITHUB_SSH_URL_PREFIX: &str = "git@github.com:";
 pub const GITLAB_SSH_URL_PREFIX: &str = "git@gitlab.com:";
@@ -72,9 +70,8 @@ impl CredentialUI for CredentialUIDialoguer {
         Ok(passphrase)
     }
 }
-pub fn clone_repo(url: &str) -> Result<git2::Repository, Box<dyn Error>> {
+pub fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<dyn Error>> {
     // Clone the project.
-    let repo_dir = tempdir()?;
     let mut cb = git2::RemoteCallbacks::new();
     let git_config = git2::Config::open_default().map_err(|err| format!("Could not open default git config: {}", err))?;
     let mut ch = CredentialHandler::new_with_ui(git_config, Box::new(CredentialUIDialoguer {}));
@@ -85,20 +82,22 @@ pub fn clone_repo(url: &str) -> Result<git2::Repository, Box<dyn Error>> {
     fo.remote_callbacks(cb)
         .download_tags(git2::AutotagOption::All)
         .update_fetchhead(true);
-    let dst = tempfile::tempdir().unwrap();
-    std::fs::create_dir_all(&dst.as_ref()).unwrap();
     let repo = git2::build::RepoBuilder::new()
         .fetch_options(fo)
-        .clone(url, repo_dir.path()).map_err(|err| format!("Could not clone repo: {}", &err))?;
+        .clone(url, target_dir).map_err(|err| format!("Could not clone repo: {}", &err))?;
 
     println!("{}", style("✔ Successfully cloned repository!").green());
 
     Ok(repo)
 }
+// is this italic
 
-pub fn get_manifest() -> Result<Manifest, Box<dyn Error>> {
+pub fn get_manifest(target_dir: &Path) -> Result<Manifest, Box<dyn Error>> {
+    let mut path = target_dir.to_owned();
+    path.push("jtd.yaml");
+
     let config: Manifest = serde_yaml::from_reader(
-        File::open(MANIFEST_PATH).map_err(|_| "Could not find manifest in repository.")?,
+        File::open(path).map_err(|_| "Could not find manifest in repository.")?,
     )
     .map_err(|_| "Could not parse manifest.")?;
     Ok(config)
@@ -109,15 +108,6 @@ pub fn get_theme() -> impl Theme {
         values_style: Style::new().yellow().dim(),
         ..ColorfulTheme::default()
     }
-}
-
-pub fn get_head_hash(target_dir: &str) -> Result<String, Box<dyn Error>> {
-    let bytes = Command::new("git")
-        .args(["rev-parse", "HEAD"])
-        .current_dir(target_dir)
-        .output()?
-        .stdout;
-    Ok(String::from_utf8_lossy(&bytes).to_string())
 }
 
 pub fn is_in_past(commit_hash: &str) -> Result<bool, Box<dyn Error>> {

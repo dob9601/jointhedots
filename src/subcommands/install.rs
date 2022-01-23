@@ -5,18 +5,21 @@ use std::path::{Path, PathBuf};
 
 use console::style;
 use dialoguer::{Confirm, MultiSelect};
+use tempfile::tempdir;
 
 use crate::cli::InstallSubcommandArgs;
+use crate::git::get_head_hash;
 use crate::structs::Dotfile;
-use crate::utils::{get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec, get_head_hash, clone_repo};
+use crate::utils::{get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec, clone_repo};
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
     let theme = get_theme();
+    let target_dir = tempdir()?;
 
-    let repo = clone_repo(&url)?;
+    let repo = clone_repo(&url, target_dir.path())?;
 
-    let manifest = get_manifest()?;
+    let manifest = get_manifest(target_dir.path())?;
 
     let dotfiles: Vec<(String, Dotfile)> = if args.all {
         manifest.into_iter().collect()
@@ -69,8 +72,10 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
         }
     }
 
+    let mut repo_dir = repo.path().to_owned();
+    repo_dir.pop();
     for (dotfile_name, dotfile) in dotfiles {
-        let mut origin_path_buf = PathBuf::from(repo.path());
+        let mut origin_path_buf = PathBuf::from(&repo_dir);
         origin_path_buf.push(&dotfile.file);
         let origin_path = origin_path_buf.as_path();
 
@@ -124,9 +129,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     fs::create_dir_all(data_path.as_ref())?;
 
     let mut head_file = File::create(data_path.to_string() + "HEAD")?;
-    println!("{}", repo.head()?.target().unwrap().to_string());
-
-    // head_file.write_all(get_head_hash(repo.path())?.as_bytes())?;
+    head_file.write_all(get_head_hash(&repo)?.as_bytes())?;
 
     Ok(())
 }

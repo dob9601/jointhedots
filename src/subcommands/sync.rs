@@ -5,6 +5,8 @@ use std::{
     process::Command,
 };
 
+use tempfile::tempdir;
+
 use crate::{
     cli::SyncSubcommandArgs,
     structs::Dotfile,
@@ -13,10 +15,11 @@ use crate::{
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
+    let target_dir = tempdir()?;
 
-    let repo = clone_repo(&url)?;
+    let repo = clone_repo(&url, target_dir.path())?;
 
-    let manifest = get_manifest()?;
+    let manifest = get_manifest(target_dir.path())?;
 
     let dotfiles_iter = manifest.into_iter();
     let dotfiles: Vec<(String, Dotfile)> = if !args.target_dotfiles.is_empty() {
