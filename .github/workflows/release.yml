@@ -22,7 +22,7 @@ jobs:
       run: |
         mkdir release
         mv src/jtd-wrapper.sh release/jtd.sh
-        mv target/release/jointhedots release/jtd
+        mv target/release/jtd release/jtd
 
     - name: Publish
       uses: softprops/action-gh-release@v1
