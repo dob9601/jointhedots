@@ -8,9 +8,9 @@ use std::{
 use console::style;
 use dialoguer::{
     console::Style,
-    theme::{ColorfulTheme, Theme},
+    theme::{ColorfulTheme, Theme}, Input, Password,
 };
-use git2::{Cred, RemoteCallbacks};
+use git2_credentials::{CredentialHandler, CredentialUI};
 use indicatif::{ProgressBar, ProgressStyle};
 use tempfile::tempdir;
 
@@ -48,32 +48,51 @@ pub fn get_repo_host_ssh_url(host: &str) -> Result<&str, Box<dyn Error>> {
         _ => Err("Provided host unknown".into()),
     }
 }
+pub struct CredentialUIDialoguer;
 
+impl CredentialUI for CredentialUIDialoguer {
+    fn ask_user_password(&self, username: &str) -> Result<(String, String), Box<dyn Error>> {
+        let theme = get_theme();
+        let user: String = Input::with_theme(&theme)
+            .default(username.to_owned())
+            .with_prompt("Username")
+            .interact()?;
+        let password: String = Password::with_theme(&theme)
+            .with_prompt("password (hidden)")
+            .allow_empty_password(true)
+            .interact()?;
+        Ok((user, password))
+    }
+
+    fn ask_ssh_passphrase(&self, passphrase_prompt: &str) -> Result<String, Box<dyn Error>> {
+        let passphrase: String = Password::with_theme(&get_theme())
+            .with_prompt(format!("{} (leave blank for no password): ", passphrase_prompt))
+            .allow_empty_password(true)
+            .interact()?;
+        Ok(passphrase)
+    }
+}
 pub fn clone_repo(url: &str) -> Result<git2::Repository, Box<dyn Error>> {
-    let pb = ProgressBar::new_spinner();
-    pb.enable_steady_tick(SPINNER_RATE);
-    pb.set_style(
-        ProgressStyle::default_spinner()
-            .tick_strings(SPINNER_FRAMES)
-            .template("{spinner:.blue} {msg}"),
-    );
-    pb.set_message("Attempting to clone repository");
-
-    let mut callbacks = RemoteCallbacks::new();
-    callbacks.credentials(|_url, username_from_url, _allowed_types| {
-        Cred::ssh_key_from_agent(username_from_url.unwrap())
-    });
-
-    let mut fo = git2::FetchOptions::new();
-    fo.remote_callbacks(callbacks);
-
-    let mut builder = git2::build::RepoBuilder::new();
-    builder.fetch_options(fo);
-
     // Clone the project.
     let repo_dir = tempdir()?;
-    let repo = builder.clone(url, repo_dir.path())?;
+    let mut cb = git2::RemoteCallbacks::new();
+    let git_config = git2::Config::open_default().map_err(|err| format!("Could not open default git config: {}", err))?;
+    let mut ch = CredentialHandler::new_with_ui(git_config, Box::new(CredentialUIDialoguer {}));
+    cb.credentials(move |url, username, allowed| ch.try_next_credential(url, username, allowed));
+
+    // clone a repository
+    let mut fo = git2::FetchOptions::new();
+    fo.remote_callbacks(cb)
+        .download_tags(git2::AutotagOption::All)
+        .update_fetchhead(true);
+    let dst = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(&dst.as_ref()).unwrap();
+    let repo = git2::build::RepoBuilder::new()
+        .fetch_options(fo)
+        .clone(url, repo_dir.path()).map_err(|err| format!("Could not clone repo: {}", &err))?;
+
     println!("{}", style("✔ Successfully cloned repository!").green());
+
     Ok(repo)
 }
 
