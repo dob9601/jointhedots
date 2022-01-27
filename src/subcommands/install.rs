@@ -9,7 +9,7 @@ use tempfile::tempdir;
 
 use crate::cli::InstallSubcommandArgs;
 use crate::git::get_head_hash;
-use crate::structs::Dotfile;
+use crate::structs::{Dotfile, InstalledDotfilesManifest, InstalledDotfile};
 use crate::utils::{get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec, clone_repo};
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
@@ -18,6 +18,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     let target_dir = tempdir()?;
 
     let repo = clone_repo(&url, target_dir.path())?;
+    let head_hash = get_head_hash(&repo)?;
 
     let manifest = get_manifest(target_dir.path())?;
 
@@ -72,8 +73,11 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
         }
     }
 
-    let mut repo_dir = repo.path().to_owned();
-    repo_dir.pop();
+    // Safe to unwrap here, repo.path() points to .git folder. Path will always
+    // have a component after parent.
+    let repo_dir = repo.path().parent().unwrap().to_owned();
+
+    let mut output_manifest = InstalledDotfilesManifest::new();
     for (dotfile_name, dotfile) in dotfiles {
         let mut origin_path_buf = PathBuf::from(&repo_dir);
         origin_path_buf.push(&dotfile.file);
@@ -124,12 +128,15 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
             println!("Running post-install steps");
             run_command_vec(post_install)?;
         }
+
+        output_manifest.data.insert(dotfile_name.to_string(), InstalledDotfile::new(&head_hash));
     }
+
     let data_path = shellexpand::tilde("~/.local/share/jointhedots/");
     fs::create_dir_all(data_path.as_ref())?;
 
-    let mut head_file = File::create(data_path.to_string() + "HEAD")?;
-    head_file.write_all(get_head_hash(&repo)?.as_bytes())?;
+    let output_manifest_file = File::create(data_path.as_ref().to_owned() + "manifest.yaml")?;
+    serde_yaml::to_writer(output_manifest_file, &output_manifest)?;
 
     Ok(())
 }
