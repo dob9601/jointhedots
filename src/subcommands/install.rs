@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::fs::{self, File};
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use console::style;
@@ -8,9 +7,9 @@ use dialoguer::{Confirm, MultiSelect};
 use tempfile::tempdir;
 
 use crate::cli::InstallSubcommandArgs;
-use crate::git::get_head_hash;
+use crate::git::{get_head_hash, clone_repo};
 use crate::structs::{Dotfile, InstalledDotfile, InstalledDotfilesManifest};
-use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec};
+use crate::utils::{get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec};
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;

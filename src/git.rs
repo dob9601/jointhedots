@@ -1,15 +1,24 @@
-use std::{error::Error, path::Path, process::Command};
+use std::{error::Error, path::Path};
 
 use console::style;
 use dialoguer::{Input, Password};
-use git2::{Oid, Repository};
+use git2::{Commit, Oid, Repository, Signature};
 use git2_credentials::{CredentialHandler, CredentialUI};
 
 use crate::utils::get_theme;
 
+pub fn get_head(repo: &Repository) -> Result<Commit, Box<dyn Error>> {
+    let commit = repo
+        .head()?
+        .resolve()?
+        .peel(git2::ObjectType::Commit)?
+        .into_commit()
+        .unwrap();
+    Ok(commit)
+}
+
 pub fn get_head_hash(repo: &Repository) -> Result<String, Box<dyn Error>> {
-    let commit = repo.head()?.target().ok_or("Could not get HEAD commit")?;
-    Ok(commit.to_string())
+    Ok(get_head(repo)?.id().to_string())
 }
 
 pub struct CredentialUIDialoguer;
@@ -60,6 +69,34 @@ pub fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<
     println!("{}", style("✔ Successfully cloned repository!").green());
 
     Ok(repo)
+}
+
+pub fn add_and_commit(
+    repo: &Repository,
+    file_paths: Vec<&Path>,
+    message: &str,
+) -> Result<Oid, Box<dyn Error>> {
+    let mut index = repo.index()?;
+
+    for path in file_paths {
+        index.add_path(path)?;
+    }
+
+    let oid = index.write_tree()?;
+    let tree = repo.find_tree(oid)?;
+
+    let signature = Signature::now("Jointhedots Sync", "jtd@danielobr.ie")?;
+
+    let parent = get_head(repo)?;
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        message,
+        &tree,
+        &[&parent],
+    )
+    .map_err(|err| format!("Failed to commit to repo: {}", err.to_string()).into())
 }
 
 pub fn is_in_past(repo: &Repository, commit_hash: &str) -> Result<bool, Box<dyn Error>> {

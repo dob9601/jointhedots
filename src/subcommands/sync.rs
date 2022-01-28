@@ -10,7 +10,7 @@ use tempfile::tempdir;
 use crate::{
     cli::SyncSubcommandArgs,
     structs::Dotfile,
-    utils::{clone_repo, get_manifest, get_repo_host_ssh_url},
+    utils::{get_manifest, get_repo_host_ssh_url}, git::{clone_repo, add_and_commit},
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
@@ -30,7 +30,8 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         dotfiles_iter.collect()
     };
 
-    for (dotfile_name, dotfile) in dotfiles {
+    let mut relative_paths = vec![];
+    for (dotfile_name, dotfile) in dotfiles.iter() {
         println!("Syncing {}", dotfile_name);
 
         let mut target_path_buf = PathBuf::from(repo.path());
@@ -45,19 +46,14 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         );
         let origin_path = Path::new(origin_path_str.as_ref());
 
+        relative_paths.push(Path::new(&dotfile.file));
+
         fs::copy(origin_path, target_path)?;
     }
 
-    Command::new("git")
-        .arg("add")
-        .arg("-A")
-        .current_dir(repo.path())
-        .status()?;
-    Command::new("git")
-        .arg("commit")
-        .args(["-m", "JTD Sync"])
-        .current_dir(repo.path())
-        .status()?;
+    let commit_msg = format!("Sync dotfiles for {}", dotfiles.iter().map(|(name, _)| name.as_str()).collect::<Vec<&str>>().join(", "));
+
+    add_and_commit(&repo, relative_paths, &commit_msg)?;
 
     Command::new("git")
         .arg("push")
