@@ -29,7 +29,7 @@ pub struct Dotfile {
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct InstalledDotfilesManifest {
     #[serde(flatten)]
-    pub data: HashMap<String, InstalledDotfile>
+    pub data: HashMap<String, InstalledDotfile>,
 }
 
 impl InstalledDotfilesManifest {
@@ -46,7 +46,7 @@ pub struct InstalledDotfile {
 impl InstalledDotfile {
     pub fn new(commit_hash: &str) -> Self {
         InstalledDotfile {
-            commit_hash: commit_hash.to_string()
+            commit_hash: commit_hash.to_string(),
         }
     }
 }

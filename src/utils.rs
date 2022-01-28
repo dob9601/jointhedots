@@ -2,13 +2,15 @@ use std::{
     error::Error,
     fs::File,
     io::{self, Write},
-    process::Command, path::Path,
+    path::Path,
+    process::Command,
 };
 
 use console::style;
 use dialoguer::{
     console::Style,
-    theme::{ColorfulTheme, Theme}, Input, Password,
+    theme::{ColorfulTheme, Theme},
+    Input, Password,
 };
 use git2_credentials::{CredentialHandler, CredentialUI};
 

@@ -52,7 +52,7 @@ pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
         source: repo_sources[source_index].to_string(),
         force,
         trust: false,
-        all: false
+        all: false,
     };
 
     install_subcommand_handler(install_args)?;

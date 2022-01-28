@@ -2,11 +2,10 @@ use std::{error::Error, path::Path, process::Command};
 
 use console::style;
 use dialoguer::{Input, Password};
-use git2::{Repository, Oid};
-use git2_credentials::{CredentialUI, CredentialHandler};
+use git2::{Oid, Repository};
+use git2_credentials::{CredentialHandler, CredentialUI};
 
 use crate::utils::get_theme;
-
 
 pub fn get_head_hash(repo: &Repository) -> Result<String, Box<dyn Error>> {
     let commit = repo.head()?.target().ok_or("Could not get HEAD commit")?;
@@ -31,7 +30,10 @@ impl CredentialUI for CredentialUIDialoguer {
 
     fn ask_ssh_passphrase(&self, passphrase_prompt: &str) -> Result<String, Box<dyn Error>> {
         let passphrase: String = Password::with_theme(&get_theme())
-            .with_prompt(format!("{} (leave blank for no password): ", passphrase_prompt))
+            .with_prompt(format!(
+                "{} (leave blank for no password): ",
+                passphrase_prompt
+            ))
             .allow_empty_password(true)
             .interact()?;
         Ok(passphrase)
@@ -40,7 +42,8 @@ impl CredentialUI for CredentialUIDialoguer {
 pub fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<dyn Error>> {
     // Clone the project.
     let mut cb = git2::RemoteCallbacks::new();
-    let git_config = git2::Config::open_default().map_err(|err| format!("Could not open default git config: {}", err))?;
+    let git_config = git2::Config::open_default()
+        .map_err(|err| format!("Could not open default git config: {}", err))?;
     let mut ch = CredentialHandler::new_with_ui(git_config, Box::new(CredentialUIDialoguer {}));
     cb.credentials(move |url, username, allowed| ch.try_next_credential(url, username, allowed));
 
@@ -51,7 +54,8 @@ pub fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<
         .update_fetchhead(true);
     let repo = git2::build::RepoBuilder::new()
         .fetch_options(fo)
-        .clone(url, target_dir).map_err(|err| format!("Could not clone repo: {}", &err))?;
+        .clone(url, target_dir)
+        .map_err(|err| format!("Could not clone repo: {}", &err))?;
 
     println!("{}", style("✔ Successfully cloned repository!").green());
 

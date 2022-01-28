@@ -10,7 +10,7 @@ use tempfile::tempdir;
 use crate::{
     cli::SyncSubcommandArgs,
     structs::Dotfile,
-    utils::{get_repo_host_ssh_url, clone_repo, get_manifest},
+    utils::{clone_repo, get_manifest, get_repo_host_ssh_url},
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
@@ -48,8 +48,16 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         fs::copy(origin_path, target_path)?;
     }
 
-    Command::new("git").arg("add").arg("-A").current_dir(repo.path()).status()?;
-    Command::new("git").arg("commit").args(["-m", "JTD Sync"]).current_dir(repo.path()).status()?;
+    Command::new("git")
+        .arg("add")
+        .arg("-A")
+        .current_dir(repo.path())
+        .status()?;
+    Command::new("git")
+        .arg("commit")
+        .args(["-m", "JTD Sync"])
+        .current_dir(repo.path())
+        .status()?;
 
     Command::new("git")
         .arg("push")

@@ -9,8 +9,8 @@ use tempfile::tempdir;
 
 use crate::cli::InstallSubcommandArgs;
 use crate::git::get_head_hash;
-use crate::structs::{Dotfile, InstalledDotfilesManifest, InstalledDotfile};
-use crate::utils::{get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec, clone_repo};
+use crate::structs::{Dotfile, InstalledDotfile, InstalledDotfilesManifest};
+use crate::utils::{clone_repo, get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec};
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
@@ -129,7 +129,9 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
             run_command_vec(post_install)?;
         }
 
-        output_manifest.data.insert(dotfile_name.to_string(), InstalledDotfile::new(&head_hash));
+        output_manifest
+            .data
+            .insert(dotfile_name.to_string(), InstalledDotfile::new(&head_hash));
     }
 
     let data_path = shellexpand::tilde("~/.local/share/jointhedots/");
