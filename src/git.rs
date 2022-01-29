@@ -4,7 +4,6 @@ use console::style;
 use dialoguer::{Input, Password};
 use git2::{Commit, Direction, Oid, PushOptions, RemoteCallbacks, Repository, Signature};
 use git2_credentials::{CredentialHandler, CredentialUI};
-use indicatif::ProgressBar;
 
 use crate::utils::get_theme;
 use lazy_static::lazy_static;
@@ -91,11 +90,6 @@ pub fn generate_callbacks() -> Result<RemoteCallbacks<'static>, Box<dyn Error>> 
         .map_err(|err| format!("Could not open default git config: {}", err))?;
     let mut ch = CredentialHandler::new_with_ui(git_config, Box::new(CredentialUIDialoguer {}));
     cb.credentials(move |url, username, allowed| ch.try_next_credential(url, username, allowed));
-
-    let pack_pb = ProgressBar::new(100);
-    cb.pack_progress(|data1, data2, data3| {
-        println!("Data: {:?} / {:?} / {:?}", data1, data2, data3);
-    });
 
     Ok(cb)
 }
