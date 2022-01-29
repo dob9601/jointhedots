@@ -9,7 +9,7 @@ use tempfile::tempdir;
 
 use crate::{
     cli::SyncSubcommandArgs,
-    git::{add_and_commit, clone_repo},
+    git::{add_and_commit, clone_repo, push},
     structs::Dotfile,
     utils::{get_manifest, get_repo_host_ssh_url},
 };
@@ -63,9 +63,6 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
 
     add_and_commit(&repo, relative_paths, &commit_msg)?;
 
-    Command::new("git")
-        .arg("push")
-        .current_dir(repo.path())
-        .status()?;
+    push(&repo)?;
     Ok(())
 }

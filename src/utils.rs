@@ -10,9 +10,7 @@ use console::style;
 use dialoguer::{
     console::Style,
     theme::{ColorfulTheme, Theme},
-    Input, Password,
 };
-use git2_credentials::{CredentialHandler, CredentialUI};
 
 use crate::structs::Manifest;
 
