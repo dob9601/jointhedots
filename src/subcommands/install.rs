@@ -7,7 +7,7 @@ use dialoguer::{Confirm, MultiSelect};
 use tempfile::tempdir;
 
 use crate::cli::InstallSubcommandArgs;
-use crate::git::{get_head_hash, clone_repo};
+use crate::git::{clone_repo, get_head_hash};
 use crate::structs::{Dotfile, InstalledDotfile, InstalledDotfilesManifest};
 use crate::utils::{get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec};
 

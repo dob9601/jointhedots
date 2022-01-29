@@ -9,8 +9,9 @@ use tempfile::tempdir;
 
 use crate::{
     cli::SyncSubcommandArgs,
+    git::{add_and_commit, clone_repo},
     structs::Dotfile,
-    utils::{get_manifest, get_repo_host_ssh_url}, git::{clone_repo, add_and_commit},
+    utils::{get_manifest, get_repo_host_ssh_url},
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
@@ -51,7 +52,14 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         fs::copy(origin_path, target_path)?;
     }
 
-    let commit_msg = format!("Sync dotfiles for {}", dotfiles.iter().map(|(name, _)| name.as_str()).collect::<Vec<&str>>().join(", "));
+    let commit_msg = format!(
+        "Sync dotfiles for {}",
+        dotfiles
+            .iter()
+            .map(|(name, _)| name.as_str())
+            .collect::<Vec<&str>>()
+            .join(", ")
+    );
 
     add_and_commit(&repo, relative_paths, &commit_msg)?;
 
