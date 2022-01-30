@@ -47,9 +47,6 @@ pub fn get_host_git_url(host: &str, method: ConnectionMethod) -> Result<&str, Bo
     }
 }
 
-pub const GITHUB_SSH_URL_PREFIX: &str = "git@github.com:";
-pub const GITLAB_SSH_URL_PREFIX: &str = "git@gitlab.com:";
-
 pub const SPINNER_FRAMES: &[&str] = &[
     "⢀⠀", "⡀⠀", "⠄⠀", "⢂⠀", "⡂⠀", "⠅⠀", "⢃⠀", "⡃⠀", "⠍⠀", "⢋⠀", "⡋⠀", "⠍⠁", "⢋⠁", "⡋⠁", "⠍⠉", "⠋⠉",
     "⠋⠉", "⠉⠙", "⠉⠙", "⠉⠩", "⠈⢙", "⠈⡙", "⢈⠩", "⡀⢙", "⠄⡙", "⢂⠩", "⡂⢘", "⠅⡘", "⢃⠨", "⡃⢐", "⠍⡐", "⢋⠠",
