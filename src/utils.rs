@@ -14,6 +14,39 @@ use dialoguer::{
 
 use crate::structs::Manifest;
 
+pub enum ConnectionMethod {
+    SSH,
+    HTTPS
+}
+
+struct RepoHost {
+    ssh_prefix: &'static str,
+    https_prefix: &'static str
+}
+
+const GITLAB: RepoHost = RepoHost {
+    ssh_prefix: "git@gitlab.com:",
+    https_prefix: "https://gitlab.com/"
+};
+
+const GITHUB: RepoHost = RepoHost {
+    ssh_prefix: "git@github.com:",
+    https_prefix: "https://github.com/"
+};
+
+pub fn get_host_git_url(host: &str, method: ConnectionMethod) -> Result<&str, Box<dyn Error>> {
+    let repo_host = match host.to_lowercase().as_str() {
+        "github" => GITHUB,
+        "gitlab" => GITLAB,
+        _ => Err("Provided host unknown")?,
+    };
+
+    match method {
+        ConnectionMethod::SSH => Ok(repo_host.ssh_prefix),
+        ConnectionMethod::HTTPS => Ok(repo_host.https_prefix),
+    }
+}
+
 pub const GITHUB_SSH_URL_PREFIX: &str = "git@github.com:";
 pub const GITLAB_SSH_URL_PREFIX: &str = "git@gitlab.com:";
 
@@ -39,13 +72,6 @@ pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn get_repo_host_ssh_url(host: &str) -> Result<&str, Box<dyn Error>> {
-    match host.to_lowercase().as_str() {
-        "github" => Ok(GITHUB_SSH_URL_PREFIX),
-        "gitlab" => Ok(GITLAB_SSH_URL_PREFIX),
-        _ => Err("Provided host unknown".into()),
-    }
-}
 pub fn get_manifest(target_dir: &Path) -> Result<Manifest, Box<dyn Error>> {
     let mut path = target_dir.to_owned();
     path.push("jtd.yaml");
