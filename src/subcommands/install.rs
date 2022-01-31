@@ -7,12 +7,13 @@ use dialoguer::{Confirm, MultiSelect};
 use tempfile::tempdir;
 
 use crate::cli::InstallSubcommandArgs;
-use crate::git::{clone_repo, get_head_hash};
+use crate::git::operations::{clone_repo, get_head_hash};
+use crate::git::remote::get_host_git_url;
 use crate::structs::{Dotfile, InstalledDotfile, InstalledDotfilesManifest};
-use crate::utils::{get_manifest, get_repo_host_ssh_url, get_theme, run_command_vec};
+use crate::utils::{get_manifest, get_theme, run_command_vec};
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
-    let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
+    let url = get_host_git_url(&args.repository, &args.source, &args.method)?;
     let theme = get_theme();
     let target_dir = tempdir()?;
 

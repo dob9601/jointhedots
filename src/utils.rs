@@ -14,39 +14,6 @@ use dialoguer::{
 
 use crate::structs::Manifest;
 
-pub enum ConnectionMethod {
-    SSH,
-    HTTPS
-}
-
-struct RepoHost {
-    ssh_prefix: &'static str,
-    https_prefix: &'static str
-}
-
-const GITLAB: RepoHost = RepoHost {
-    ssh_prefix: "git@gitlab.com:",
-    https_prefix: "https://gitlab.com/"
-};
-
-const GITHUB: RepoHost = RepoHost {
-    ssh_prefix: "git@github.com:",
-    https_prefix: "https://github.com/"
-};
-
-pub fn get_host_git_url(host: &str, method: ConnectionMethod) -> Result<&str, Box<dyn Error>> {
-    let repo_host = match host.to_lowercase().as_str() {
-        "github" => GITHUB,
-        "gitlab" => GITLAB,
-        _ => Err("Provided host unknown")?,
-    };
-
-    match method {
-        ConnectionMethod::SSH => Ok(repo_host.ssh_prefix),
-        ConnectionMethod::HTTPS => Ok(repo_host.https_prefix),
-    }
-}
-
 pub const SPINNER_FRAMES: &[&str] = &[
     "⢀⠀", "⡀⠀", "⠄⠀", "⢂⠀", "⡂⠀", "⠅⠀", "⢃⠀", "⡃⠀", "⠍⠀", "⢋⠀", "⡋⠀", "⠍⠁", "⢋⠁", "⡋⠁", "⠍⠉", "⠋⠉",
     "⠋⠉", "⠉⠙", "⠉⠙", "⠉⠩", "⠈⢙", "⠈⡙", "⢈⠩", "⡀⢙", "⠄⡙", "⢂⠩", "⡂⢘", "⠅⡘", "⢃⠨", "⡃⢐", "⠍⡐", "⢋⠠",

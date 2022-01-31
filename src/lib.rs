@@ -1,7 +1,11 @@
 pub mod cli;
-pub mod git;
 pub mod structs;
 pub mod utils;
+
+pub mod git {
+    pub mod operations;
+    pub mod remote;
+}
 
 pub mod subcommands {
     mod install;

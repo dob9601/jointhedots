@@ -2,20 +2,17 @@ use std::{
     error::Error,
     fs,
     path::{Path, PathBuf},
-    process::Command,
 };
 
 use tempfile::tempdir;
 
 use crate::{
     cli::SyncSubcommandArgs,
-    git::{add_and_commit, clone_repo, push},
-    structs::Dotfile,
-    utils::{get_manifest, get_repo_host_ssh_url},
+    structs::Dotfile, git::{remote::get_host_git_url, operations::{clone_repo, add_and_commit, push}}, utils::get_manifest
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
-    let url = get_repo_host_ssh_url(&args.source)?.to_string() + &args.repository;
+    let url = get_host_git_url(&args.repository, &args.source, &args.method)?.to_string() + &args.repository;
     let target_dir = tempdir()?;
 
     let repo = clone_repo(&url, target_dir.path())?;
