@@ -49,6 +49,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
             .collect()
     };
 
+    let mut skip_run_install = true;
     if dotfiles
         .iter()
         .any(|(_, dotfile)| dotfile.pre_install.is_some() || dotfile.post_install.is_some())
@@ -57,20 +58,16 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
             "{}",
             style(
                 "! This manifest contains pre_install and/or post_install \
-                steps, are you sure you trust this manifest?"
+                steps. If you do not trust this manifest, you can skip running them."
             )
             .yellow()
         );
-        let trust = Confirm::with_theme(&theme)
-            .with_prompt("Trust this manifest?")
+        skip_run_install = Confirm::with_theme(&theme)
+            .with_prompt("Skip running pre/post install?")
             .default(false)
             .wait_for_newline(true)
             .interact()
             .unwrap();
-
-        if !trust {
-            return Err("Aborting due to untrusted dotfile manifest".into());
-        }
     }
 
     // Safe to unwrap here, repo.path() points to .git folder. Path will always
@@ -107,9 +104,11 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
         println!("Commencing install for {}", dotfile_name);
 
-        if let Some(pre_install) = &dotfile.pre_install {
-            println!("Running pre-install steps");
-            run_command_vec(pre_install)?;
+        if skip_run_install {
+            if let Some(pre_install) = &dotfile.pre_install {
+                println!("Running pre-install steps");
+                run_command_vec(pre_install)?;
+            }
         }
 
         println!(
@@ -129,9 +128,10 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
             run_command_vec(post_install)?;
         }
 
-        output_manifest
-            .data
-            .insert(dotfile_name.to_string(), InstalledDotfile::new(&head_hash));
+        output_manifest.data.insert(
+            dotfile_name.to_string(),
+            InstalledDotfile::new(&head_hash, &dotfile.pre_install, &dotfile.post_install),
+        );
     }
 
     let data_path = shellexpand::tilde("~/.local/share/jointhedots/");
