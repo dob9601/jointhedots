@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fs::{self, File};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use console::style;
 use dialoguer::{Confirm, MultiSelect};
@@ -9,8 +9,8 @@ use tempfile::tempdir;
 use crate::cli::InstallSubcommandArgs;
 use crate::git::operations::{clone_repo, get_head_hash};
 use crate::git::remote::get_host_git_url;
-use crate::structs::{Dotfile, InstalledDotfile, InstalledDotfilesManifest};
-use crate::utils::{get_manifest, get_theme, run_command_vec};
+use crate::structs::{AggregatedDotfileMetadata, Dotfile};
+use crate::utils::{get_manifest, get_theme};
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_host_git_url(&args.repository, &args.source, &args.method)?;
@@ -49,7 +49,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
             .collect()
     };
 
-    let mut skip_run_install = true;
+    let mut skip_install_commands = true;
     if dotfiles
         .iter()
         .any(|(_, dotfile)| dotfile.pre_install.is_some() || dotfile.post_install.is_some())
@@ -62,7 +62,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
             )
             .yellow()
         );
-        skip_run_install = Confirm::with_theme(&theme)
+        skip_install_commands = Confirm::with_theme(&theme)
             .with_prompt("Skip running pre/post install?")
             .default(false)
             .wait_for_newline(true)
@@ -74,21 +74,12 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     // have a component after parent.
     let repo_dir = repo.path().parent().unwrap().to_owned();
 
-    let mut output_manifest = InstalledDotfilesManifest::new();
+    let mut aggregated_metadata = AggregatedDotfileMetadata::get_current()?;
     for (dotfile_name, dotfile) in dotfiles {
         let mut origin_path_buf = PathBuf::from(&repo_dir);
         origin_path_buf.push(&dotfile.file);
-        let origin_path = origin_path_buf.as_path();
 
-        let target_path_str = shellexpand::tilde(
-            dotfile
-                .target
-                .to_str()
-                .expect("Invalid unicode in target path"),
-        );
-        let target_path = Path::new(target_path_str.as_ref());
-
-        if target_path.exists() && !args.force {
+        if dotfile.target.exists() && !args.force {
             let force = Confirm::with_theme(&theme)
                 .with_prompt(format!(
                     "Dotfile \"{}\" already exists on disk. Overwrite?",
@@ -104,41 +95,24 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
         println!("Commencing install for {}", dotfile_name);
 
-        if skip_run_install {
-            if let Some(pre_install) = &dotfile.pre_install {
-                println!("Running pre-install steps");
-                run_command_vec(pre_install)?;
-            }
-        }
+        let maybe_metadata = aggregated_metadata
+            .data
+            .get(&dotfile_name)
+            .map(|d| (*d).clone());
 
-        println!(
-            "Installing config file {} to location {}",
-            &dotfile.file,
-            target_path.to_str().expect("Invalid unicode in path")
-        );
+        let metadata =
+            dotfile.install(&repo_dir, maybe_metadata, &head_hash, skip_install_commands)?;
 
-        if let Some(parent) = target_path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|_| "Unable to create parent directories".to_string())?;
-        }
-        fs::copy(origin_path, target_path).expect("Failed to copy target file");
-
-        if let Some(post_install) = &dotfile.post_install {
-            println!("Running post-install steps");
-            run_command_vec(post_install)?;
-        }
-
-        output_manifest.data.insert(
-            dotfile_name.to_string(),
-            InstalledDotfile::new(&head_hash, &dotfile.pre_install, &dotfile.post_install),
-        );
+        aggregated_metadata
+            .data
+            .insert(dotfile_name.to_string(), metadata);
     }
 
     let data_path = shellexpand::tilde("~/.local/share/jointhedots/");
     fs::create_dir_all(data_path.as_ref())?;
 
     let output_manifest_file = File::create(data_path.as_ref().to_owned() + "manifest.yaml")?;
-    serde_yaml::to_writer(output_manifest_file, &output_manifest)?;
+    serde_yaml::to_writer(output_manifest_file, &aggregated_metadata)?;
 
     Ok(())
 }

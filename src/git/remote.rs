@@ -22,6 +22,7 @@ impl FromStr for ConnectionMethod {
 }
 
 #[derive(ArgEnum, Clone, EnumIter, Display, Debug, PartialEq)]
+#[clap(rename_all = "PascalCase")]
 pub enum RepoHostName {
     GitHub,
     GitLab

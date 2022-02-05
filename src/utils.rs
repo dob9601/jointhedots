@@ -22,6 +22,7 @@ pub const SPINNER_FRAMES: &[&str] = &[
     "⠀⢘", "⠀⡘", "⠀⠨", "⠀⢐", "⠀⡐", "⠀⠠", "⠀⢀", "⠀⡀", "  ", "  ",
 ];
 pub const SPINNER_RATE: u64 = 48;
+pub const INSTALLED_DOTFILES_MANIFEST_PATH: &str = "~/.local/share/jointhedots/manifest.yaml";
 
 pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
     for (stage, command) in command_vec.iter().enumerate() {
@@ -48,29 +49,19 @@ pub fn get_manifest(target_dir: &Path) -> Result<Manifest, Box<dyn Error>> {
     Ok(config)
 }
 
-pub fn get_installed_dotfiles_manifest(target_dir: &Path) -> Some<Manifest> {
-    let mut path = target_dir.to_owned();
-    path.push("jtd.yaml");
-
-    let config: Manifest = serde_yaml::from_reader(
-        File::open(path).map_err(|_| "Could not find manifest in repository.")?,
-    )
-    .map_err(|_| "Could not parse manifest.")?;
-    Ok(config)
-}
-
-pub fn get_theme() -> impl Theme {
+pub(crate) fn get_theme() -> impl Theme {
     ColorfulTheme {
         values_style: Style::new().yellow().dim(),
         ..ColorfulTheme::default()
     }
 }
 
-pub fn hash_command_vec(command_vec: &[String]) -> Result<String, Box<dyn Error>> {
+pub(crate) fn hash_command_vec(command_vec: &[String]) -> Result<String, Box<dyn Error>> {
     let mut hasher = Sha1::new();
     let bytes: Vec<u8> = command_vec.iter().map(|s| s.bytes()).flatten().collect();
 
     hasher.update(bytes);
-    std::str::from_utf8(&hasher.finalize()[..]).map(|s| s.to_string())
+    std::str::from_utf8(&hasher.finalize()[..])
+        .map(|s| s.to_string())
         .map_err(|err| format!("Failed to convert hash to string: {}", err.to_string()).into())
 }

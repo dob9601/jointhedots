@@ -36,7 +36,8 @@ pub struct InstallSubcommandArgs {
         default_value = "GitHub",
         help = "Whether to source the repo from GitHub or GitLab",
         long = "source",
-        short = 's'
+        short = 's',
+        ignore_case = true,
     )]
     pub source: RepoHostName,
 
