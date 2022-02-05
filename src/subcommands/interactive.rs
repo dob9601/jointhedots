@@ -1,9 +1,10 @@
 use console::style;
 use dialoguer::{Confirm, Input, Select};
 use regex::Regex;
-use std::error::Error;
+use strum::IntoEnumIterator;
+use std::{error::Error, str::FromStr};
 
-use crate::{cli::InstallSubcommandArgs, utils::get_theme};
+use crate::{cli::InstallSubcommandArgs, utils::get_theme, git::remote::{RepoHostName, ConnectionMethod}};
 
 use super::install_subcommand_handler;
 
@@ -31,11 +32,19 @@ pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
         .interact_text()
         .unwrap();
 
-    let repo_sources = ["GitHub", "GitLab"];
+    let repo_sources = RepoHostName::iter().collect::<Vec<RepoHostName>>();
     let source_index = Select::with_theme(&theme)
         .with_prompt("Repository Source: ")
         .default(0)
         .items(&repo_sources)
+        .interact()
+        .unwrap();
+
+    let methods = ConnectionMethod::iter().collect::<Vec<ConnectionMethod>>();
+    let method_index = Select::with_theme(&theme)
+        .with_prompt("Method: ")
+        .default(0)
+        .items(&methods)
         .interact()
         .unwrap();
 
@@ -49,8 +58,9 @@ pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
     let install_args = InstallSubcommandArgs {
         repository,
         target_dotfiles: vec![],
-        source: repo_sources[source_index].to_string(),
+        source: RepoHostName::from_str(repo_sources[source_index].to_string().as_str())?,
         force,
+        method: ConnectionMethod::from_str(methods[method_index].to_string().as_str())?,
         trust: false,
         all: false,
     };

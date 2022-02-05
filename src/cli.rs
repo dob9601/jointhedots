@@ -1,5 +1,7 @@
 use clap::Parser;
 
+use crate::git::remote::{RepoHostName, ConnectionMethod};
+
 #[derive(Parser, Debug)]
 #[clap(name = "jointhedots", bin_name = "jtd", about)]
 pub enum JoinTheDots {
@@ -15,18 +17,29 @@ pub struct InstallSubcommandArgs {
     pub repository: String,
 
     #[clap(
+        arg_enum,
+        long = "method",
+        short = 'm',
+        help = "The method to use for cloning/pushing the repository",
+        default_value = "https"
+    )]
+    pub method: ConnectionMethod,
+
+    #[clap(
         help = "The dotfiles to install. If unspecified, install all of them",
         conflicts_with = "all"
     )]
     pub target_dotfiles: Vec<String>,
 
     #[clap(
+        arg_enum,
         default_value = "GitHub",
         help = "Whether to source the repo from GitHub or GitLab",
         long = "source",
-        short = 's'
+        short = 's',
+        ignore_case = true,
     )]
-    pub source: String,
+    pub source: RepoHostName,
 
     #[clap(
         help = "Whether to overwrite existing configs without prompt",
@@ -64,11 +77,21 @@ pub struct SyncSubcommandArgs {
     pub target_dotfiles: Vec<String>,
 
     #[clap(
+        arg_enum,
+        long = "method",
+        short = 'm',
+        help = "The method to use for cloning/pushing the repository",
+        default_value = "ssh"
+    )]
+    pub method: ConnectionMethod,
+
+    #[clap(
+        arg_enum,
         default_value = "GitHub",
         help = "Whether to source the repo from GitHub or GitLab",
         long = "source"
     )]
-    pub source: String,
+    pub source: RepoHostName,
 }
 
 #[derive(clap::Args, Debug)]
