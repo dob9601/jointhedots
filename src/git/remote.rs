@@ -21,7 +21,7 @@ impl FromStr for ConnectionMethod {
     }
 }
 
-#[derive(ArgEnum, Clone, EnumIter, Display, Debug)]
+#[derive(ArgEnum, Clone, EnumIter, Display, Debug, PartialEq)]
 pub enum RepoHostName {
     GitHub,
     GitLab
@@ -66,3 +66,23 @@ pub fn get_host_git_url(repository: &str, host: &RepoHostName, method: &Connecti
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_host_git_url() {
+        let repo = "dob9601/dotfiles";
+        let host = RepoHostName::GitHub;
+        let method = ConnectionMethod::SSH;
+
+        let host_url = get_host_git_url(repo, &host, &method).expect("Failed to get host url");
+        assert_eq!(host_url, String::from("git@github.com:dob9601/dotfiles.git"))
+    }
+
+    #[test]
+    fn test_repo_host_name_from_str() {
+        let hostname = "github";
+        assert_eq!(<RepoHostName as std::str::FromStr>::from_str(hostname).expect("Could not convert from str"), RepoHostName::GitHub)
+    }
+}
