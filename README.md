@@ -1,6 +1,6 @@
 # Join The Dots
 
-[![asciicast](https://asciinema.org/a/w28J9DerwVlCDUT847sAVfx9y.svg)](https://asciinema.org/a/w28J9DerwVlCDUT847sAVfx9y)
+![Demo](https://user-images.githubusercontent.com/24723950/152683893-eca67fa3-96bd-4c79-9cf4-a1283a73b61d.gif)
 ```
 jointhedots 
 A simple git-based dotfile manager written entirely in Rust!
