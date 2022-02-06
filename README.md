@@ -71,9 +71,17 @@ The manifest file should be located in the root of the repository and called "jt
 
 A JSON Schema for the manifest is available [here](https://github.com/dob9601/jointhedots/blob/master/src/dotfile_schema.json). This can be used in conjunction with certain plugins to provide language server support for jtd manifests.
 
-## Download
+## Installation
 
-Grab the latest version [here](https://github.com/dob9601/jointhedots/releases/latest/download/jtd)!
-Or use the following 1 liner to 1-off run JTD to install your dotfiles
+### Manual
+Grab the latest version [here](https://github.com/dob9601/jointhedots/releases/latest/download/jtd) (for x86-64, more targets on the way!)
+### Cargo
+Install via cargo:
+```sh
+cargo install jointhedots
+```
+### Curl (one-time use)
+Use the following 1 liner to 1-off run JTD to install your dotfiles
 ```sh
 curl -sL jtd.danielobr.ie | sh
+```
