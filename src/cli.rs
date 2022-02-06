@@ -11,7 +11,7 @@ pub enum JoinTheDots {
 }
 
 #[derive(clap::Args, Debug)]
-#[clap(about = "Install a specified JTD repository", author, version)]
+#[clap(about = "Install a specified JTD repository", version)]
 pub struct InstallSubcommandArgs {
     #[clap(help = "The location of the repository in the form USERNAME/REPONAME")]
     pub repository: String,
@@ -66,7 +66,6 @@ pub struct InstallSubcommandArgs {
 #[derive(clap::Args, Debug)]
 #[clap(
     about = "Sync the currently installed JTD repository with the provided remote repo.",
-    author,
     version
 )]
 pub struct SyncSubcommandArgs {
@@ -102,5 +101,5 @@ pub struct SyncSubcommandArgs {
 }
 
 #[derive(clap::Args, Debug)]
-#[clap(about = "Interactively install dotfiles", author, version)]
+#[clap(about = "Interactively install dotfiles", version)]
 pub struct InteractiveSubcommandArgs {}

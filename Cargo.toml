@@ -3,6 +3,7 @@ name = "jointhedots"
 version = "0.0.13"
 edition = "2018"
 license = "MIT"
+authors = ["Daniel O'Brien <dob9601@gmail.com>"]
 description = "A simple git-based dotfile manager written entirely in Rust!"
 repository = "https://github.com/dob9601/jointhedots"
 
