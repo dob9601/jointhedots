@@ -38,13 +38,16 @@ pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn get_manifest(target_dir: &Path) -> Result<Manifest, Box<dyn Error>> {
-    let mut path = target_dir.to_owned();
-    path.push("jtd.yaml");
-
-    let config: Manifest = serde_yaml::from_reader(
-        File::open(path).map_err(|_| "Could not find manifest in repository.")?,
-    )
+pub fn get_manifest(manifest_path: &Path) -> Result<Manifest, Box<dyn Error>> {
+    let config: Manifest = serde_yaml::from_reader(File::open(manifest_path).map_err(|_| {
+        format!(
+            "Could not find manifest {} in repository.",
+            manifest_path
+                .file_name()
+                .map(|v| v.to_string_lossy())
+                .unwrap_or_else(|| "N/A".into())
+        )
+    })?)
     .map_err(|_| "Could not parse manifest.")?;
     Ok(config)
 }

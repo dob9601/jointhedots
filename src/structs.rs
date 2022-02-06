@@ -210,7 +210,7 @@ impl Dotfile {
             }
 
             if !skip_post_install {
-                println!("Running post-install steps");
+                println!("{}", style("  ✔ Running post-install steps").green());
                 run_command_vec(post_install)?;
             }
         }

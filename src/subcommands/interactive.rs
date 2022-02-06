@@ -48,6 +48,20 @@ pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
         .interact()
         .unwrap();
 
+    let manifest_regex = Regex::new(r"\.yaml$|\.yml$").unwrap();
+
+    let manifest = Input::with_theme(&theme)
+        .with_prompt("Manifest: ")
+        .default(String::from("jtd.yaml"))
+        .validate_with(|input: &String| {
+            if manifest_regex.is_match(input) {
+                Ok(())
+            } else {
+                Err("Manifest must be a yaml file (file extension of yaml/yml)")
+            }
+        })
+        .interact_text().unwrap();
+
     let force = Confirm::with_theme(&theme)
         .with_prompt("Overwrite existing dotfiles without prompting")
         .default(false)
@@ -60,6 +74,7 @@ pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
         target_dotfiles: vec![],
         source: RepoHostName::from_str(repo_sources[source_index].to_string().as_str())?,
         force,
+        manifest,
         method: ConnectionMethod::from_str(methods[method_index].to_string().as_str())?,
         trust: false,
         all: false,

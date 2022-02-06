@@ -12,7 +12,11 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
     let target_dir = tempdir()?;
     let repo = clone_repo(&url, target_dir.path())?;
-    let manifest = get_manifest(target_dir.path())?;
+
+    let mut manifest_path = target_dir.path().to_path_buf();
+    manifest_path.push(args.manifest);
+
+    let manifest = get_manifest(&manifest_path)?;
 
     manifest.install(repo, args.all, args.target_dotfiles, args.force)
 }
