@@ -397,7 +397,7 @@ dependencies = [
 
 [[package]]
 name = "jointhedots"
-version = "0.0.12"
+version = "0.0.13"
 dependencies = [
  "clap",
  "console 0.15.0",
