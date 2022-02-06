@@ -4,15 +4,21 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use console::style;
 use tempfile::tempdir;
 
 use crate::{
     cli::SyncSubcommandArgs,
-    structs::Dotfile, git::{remote::get_host_git_url, operations::{clone_repo, add_and_commit, push}}, utils::get_manifest
+    git::{
+        operations::{add_and_commit, clone_repo, push},
+        remote::get_host_git_url,
+    },
+    structs::Dotfile,
+    utils::get_manifest,
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
-    let url = get_host_git_url(&args.repository, &args.source, &args.method)?.to_string() + &args.repository;
+    let url = get_host_git_url(&args.repository, &args.source, &args.method)?;
     let target_dir = tempdir()?;
 
     let repo = clone_repo(&url, target_dir.path())?;
@@ -36,12 +42,10 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         target_path_buf.push(&dotfile.file);
         let target_path = target_path_buf.as_path();
 
-        let origin_path_str = shellexpand::tilde(
-            dotfile
+        let origin_path_unexpanded = &dotfile
                 .target
-                .to_str()
-                .expect("Invalid unicode in target path"),
-        );
+                .to_string_lossy();
+        let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
         let origin_path = Path::new(origin_path_str.as_ref());
 
         relative_paths.push(Path::new(&dotfile.file));
@@ -49,17 +53,23 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         fs::copy(origin_path, target_path)?;
     }
 
-    let commit_msg = format!(
-        "Sync dotfiles for {}",
-        dotfiles
-            .iter()
-            .map(|(name, _)| name.as_str())
-            .collect::<Vec<&str>>()
-            .join(", ")
-    );
+    let commit_msg = if let Some(message) = args.commit_msg {
+        message
+    } else {
+        format!(
+            "Sync dotfiles for {}",
+            dotfiles
+                .iter()
+                .map(|(name, _)| name.as_str())
+                .collect::<Vec<&str>>()
+                .join(", ")
+        )
+    };
 
     add_and_commit(&repo, relative_paths, &commit_msg)?;
 
     push(&repo)?;
+
+    println!("{}", style("✔ Successfully synced changes!").green());
     Ok(())
 }

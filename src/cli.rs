@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use crate::git::remote::{RepoHostName, ConnectionMethod};
+use crate::git::remote::{ConnectionMethod, RepoHostName};
 
 #[derive(Parser, Debug)]
 #[clap(name = "jointhedots", bin_name = "jtd", about)]
@@ -37,7 +37,7 @@ pub struct InstallSubcommandArgs {
         help = "Whether to source the repo from GitHub or GitLab",
         long = "source",
         short = 's',
-        ignore_case = true,
+        ignore_case = true
     )]
     pub source: RepoHostName,
 
@@ -92,6 +92,13 @@ pub struct SyncSubcommandArgs {
         long = "source"
     )]
     pub source: RepoHostName,
+
+    #[clap(
+        help = "The message to use for the commit",
+        long = "commit-msg",
+        short = 'c'
+    )]
+    pub commit_msg: Option<String>,
 }
 
 #[derive(clap::Args, Debug)]
