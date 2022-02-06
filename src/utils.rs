@@ -56,12 +56,29 @@ pub(crate) fn get_theme() -> impl Theme {
     }
 }
 
-pub(crate) fn hash_command_vec(command_vec: &[String]) -> Result<String, Box<dyn Error>> {
+pub(crate) fn hash_command_vec(command_vec: &[String]) -> String {
     let mut hasher = Sha1::new();
     let bytes: Vec<u8> = command_vec.iter().map(|s| s.bytes()).flatten().collect();
 
     hasher.update(bytes);
-    std::str::from_utf8(&hasher.finalize()[..])
-        .map(|s| s.to_string())
-        .map_err(|err| format!("Failed to convert hash to string: {}", err.to_string()).into())
+    hex::encode(&hasher.finalize()[..])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_command_vec() {
+        let command_vec = vec![
+            String::from("echo \"Hi!\""),
+            String::from("echo \"This is a vector of shell commands!\""),
+            String::from("echo \"Farewell!\""),
+        ];
+
+        assert_eq!(
+            hash_command_vec(&command_vec),
+            "b51a85b8eeee922159d23463ffc057ab25fbaf9b".to_string()
+        );
+    }
 }
