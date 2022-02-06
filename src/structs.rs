@@ -53,7 +53,8 @@ impl Manifest {
         let dotfiles: Vec<(&String, &Dotfile)> = if install_all {
             self.data.iter().collect()
         } else if !target_dotfiles.is_empty() {
-            self.data.iter()
+            self.data
+                .iter()
                 .filter(|(dotfile_name, _)| target_dotfiles.contains(dotfile_name))
                 .collect()
         } else {
@@ -68,7 +69,8 @@ impl Manifest {
                 .interact()
                 .unwrap();
 
-            self.data.iter()
+            self.data
+                .iter()
                 .enumerate()
                 .filter(|(index, (_, _))| selected.contains(index))
                 .map(|(_, (name, dotfile))| (name, dotfile))
@@ -125,9 +127,11 @@ impl Manifest {
     /// Return whether this Manifest contains dotfiles containing potentially dangerous run stages.
     /// Optionally can take a vector of [Dotfile]s for testing a subset of the manifest.
     pub fn has_run_stages(&self, dotfile_names: Option<Vec<&str>>) -> bool {
-        let dotfile_names = dotfile_names.unwrap_or_else(|| self.data.keys().map(|k| k.as_str()).collect());
+        let dotfile_names =
+            dotfile_names.unwrap_or_else(|| self.data.keys().map(|k| k.as_str()).collect());
 
-        self.data.iter()
+        self.data
+            .iter()
             .filter(|(dotfile_name, _)| dotfile_names.contains(&dotfile_name.as_str()))
             .any(|(_, dotfile)| dotfile.has_run_stages())
     }
@@ -181,12 +185,13 @@ impl Dotfile {
 
             if let Some(metadata) = metadata {
                 if self.hash_pre_install() == metadata.pre_install_hash {
+                    println!("{}", style("  🛈 Skipping pre install steps as they have been run in a previous install").blue());
                     skip_pre_install = true;
                 }
             }
 
             if !skip_pre_install {
-                println!("Running pre-install steps");
+                println!("{}", style("  ✔ Running pre-install steps").green());
                 run_command_vec(pre_install)?;
             }
         }
@@ -199,6 +204,7 @@ impl Dotfile {
 
             if let Some(metadata) = metadata {
                 if self.hash_post_install() == metadata.post_install_hash {
+                    println!("{}", style("  🛈 Skipping post install steps as they have been run in a previous install").blue());
                     skip_post_install = true;
                 }
             }
@@ -221,17 +227,20 @@ impl Dotfile {
 
         let target_path = Path::new(target_path_str.as_ref());
 
-        println!(
-            "Installing config file {} to location {}",
-            &self.file,
-            target_path.to_str().expect("Invalid unicode in path")
-        );
-
         if let Some(parent) = target_path.parent() {
             fs::create_dir_all(parent)
                 .map_err(|_| "Unable to create parent directories".to_string())?;
         }
         fs::copy(origin_path, target_path).expect("Failed to copy target file");
+
+        println!(
+            "{}",
+            style(format!(
+                "  ✔ Installed config file {} to location {}",
+                &self.file,
+                target_path.to_str().expect("Invalid unicode in path")
+            )).green()
+        );
 
         Ok(())
     }
