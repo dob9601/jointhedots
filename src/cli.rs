@@ -3,7 +3,7 @@ use clap::Parser;
 use crate::git::remote::{ConnectionMethod, RepoHostName};
 
 #[derive(Parser, Debug)]
-#[clap(name = "jointhedots", bin_name = "jtd", about)]
+#[clap(name = "jointhedots", bin_name = "jtd", about, version)]
 pub enum JoinTheDots {
     Install(InstallSubcommandArgs),
     Sync(SyncSubcommandArgs),
