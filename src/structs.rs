@@ -8,7 +8,7 @@ use dialoguer::{Confirm, MultiSelect};
 use git2::Repository;
 use serde::{Deserialize, Serialize};
 
-use crate::git::operations::get_head_hash;
+use crate::git::operations::{get_head_hash, add_and_commit, push};
 use crate::utils::{
     get_theme, hash_command_vec, run_command_vec, INSTALLED_DOTFILES_MANIFEST_PATH,
 };
@@ -50,32 +50,7 @@ impl Manifest {
                 .unwrap();
         }
 
-        let dotfiles: Vec<(&String, &Dotfile)> = if install_all {
-            self.data.iter().collect()
-        } else if !target_dotfiles.is_empty() {
-            self.data
-                .iter()
-                .filter(|(dotfile_name, _)| target_dotfiles.contains(dotfile_name))
-                .collect()
-        } else {
-            let dotfile_names = &self
-                .clone()
-                .into_iter()
-                .map(|pair| pair.0)
-                .collect::<Vec<String>>();
-            let selected = MultiSelect::with_theme(&theme)
-                .with_prompt("Select the dotfiles you wish to install. Use \"SPACE\" to select and \"ENTER\" to proceed.")
-                .items(dotfile_names)
-                .interact()
-                .unwrap();
-
-            self.data
-                .iter()
-                .enumerate()
-                .filter(|(index, (_, _))| selected.contains(index))
-                .map(|(_, (name, dotfile))| (name, dotfile))
-                .collect()
-        };
+        let dotfiles = self.get_target_dotfiles(target_dotfiles, install_all);
 
         // Safe to unwrap here, repo.path() points to .git folder. Path will always
         // have a component after parent.
@@ -124,6 +99,37 @@ impl Manifest {
         Ok(())
     }
 
+    fn get_target_dotfiles(&self, target_dotfiles: Vec<String>, all: bool) -> Vec<(&String, &Dotfile)> {
+        let theme = get_theme();
+
+        if all {
+            self.data.iter().collect()
+        } else if !target_dotfiles.is_empty() {
+            self.data
+                .iter()
+                .filter(|(dotfile_name, _)| target_dotfiles.contains(dotfile_name))
+                .collect()
+        } else {
+            let dotfile_names = &self
+                .clone()
+                .into_iter()
+                .map(|pair| pair.0)
+                .collect::<Vec<String>>();
+            let selected = MultiSelect::with_theme(&theme)
+                .with_prompt("Select the dotfiles you wish to install. Use \"SPACE\" to select and \"ENTER\" to proceed.")
+                .items(dotfile_names)
+                .interact()
+                .unwrap();
+
+            self.data
+                .iter()
+                .enumerate()
+                .filter(|(index, (_, _))| selected.contains(index))
+                .map(|(_, (name, dotfile))| (name, dotfile))
+                .collect()
+        }
+    }
+
     /// Return whether this Manifest contains dotfiles containing potentially dangerous run stages.
     /// Optionally can take a vector of [Dotfile]s for testing a subset of the manifest.
     pub fn has_run_stages(&self, dotfile_names: Option<Vec<&str>>) -> bool {
@@ -134,6 +140,48 @@ impl Manifest {
             .iter()
             .filter(|(dotfile_name, _)| dotfile_names.contains(&dotfile_name.as_str()))
             .any(|(_, dotfile)| dotfile.has_run_stages())
+    }
+
+    pub fn sync(
+        &self,
+        repo: Repository,
+        sync_all: bool,
+        target_dotfiles: Vec<String>,
+        commit_msg: Option<&str>
+    ) -> Result<(), Box<dyn Error>> {
+        let dotfiles = self.get_target_dotfiles(target_dotfiles, sync_all);
+
+        let mut relative_paths = vec![];
+
+        // Safe to unwrap here, repo.path() points to .git folder. Path will always
+        // have a component after parent.
+        let repo_dir = repo.path().parent().unwrap().to_owned();
+
+        for (dotfile_name, dotfile) in dotfiles.iter() {
+            println!("Syncing {}", dotfile_name);
+            relative_paths.push(dotfile.sync(&repo_dir)?);
+        }
+
+        let commit_msg = if let Some(message) = commit_msg {
+            message.to_string()
+        } else {
+            format!(
+                "Sync dotfiles for {}",
+                dotfiles
+                    .iter()
+                    .map(|(name, _)| name.as_str())
+                    .collect::<Vec<&str>>()
+                    .join(", ")
+            )
+        };
+
+        add_and_commit(&repo, relative_paths, &commit_msg)?;
+
+        push(&repo)?;
+
+        println!("{}", style("✔ Successfully synced changes!").green());
+
+        Ok(())
     }
 }
 
@@ -266,6 +314,21 @@ impl Dotfile {
         let metadata = metadata.unwrap_or_else(|| DotfileMetadata::new(commit_hash, self));
 
         Ok(metadata)
+    }
+
+    pub fn sync(&self, repo_dir: &Path) -> Result<&Path, Box<dyn Error>> {
+        let mut target_path_buf = repo_dir.to_path_buf();
+        target_path_buf.push(&self.file);
+        let target_path = target_path_buf.as_path();
+
+        let origin_path_unexpanded = &self
+                .target
+                .to_string_lossy();
+        let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
+        let origin_path = Path::new(origin_path_str.as_ref());
+
+        fs::copy(origin_path, target_path)?;
+        Ok(Path::new(&self.file))
     }
 }
 

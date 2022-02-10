@@ -22,6 +22,15 @@ pub fn get_head_hash(repo: &Repository) -> Result<String, Box<dyn Error>> {
     Ok(get_head(repo)?.id().to_string())
 }
 
+pub fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Error>> {
+    let (object, reference) = repo.revparse_ext(reference).map_err(|err| format!("Ref not found: {}", err))?;
+    if let Some(gref) = reference {
+        repo.set_head(gref.name().unwrap())
+    } else {
+        repo.set_head_detached(object.id())
+    }.map_err(|err| format!("Failed to set HEAD: {}", err).into())
+}
+
 lazy_static! {
     static ref CREDENTIAL_CACHE: RwLock<(Option<String>, Option<String>)> =
         RwLock::new((None, None));

@@ -49,7 +49,7 @@ pub fn get_manifest(manifest_path: &Path) -> Result<Manifest, Box<dyn Error>> {
                 .unwrap_or_else(|| "N/A".into())
         )
     })?)
-    .map_err(|_| "Could not parse manifest.")?;
+    .map_err(|err| format!("Could not parse manifest: {}", err))?;
     Ok(config)
 }
 
