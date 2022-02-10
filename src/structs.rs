@@ -56,7 +56,7 @@ impl Manifest {
         // have a component after parent.
         let repo_dir = repo.path().parent().unwrap().to_owned();
 
-        let mut aggregated_metadata = AggregatedDotfileMetadata::get_current()?;
+        let mut aggregated_metadata = AggregatedDotfileMetadata::get_or_create()?;
         for (dotfile_name, dotfile) in dotfiles {
             let mut origin_path_buf = PathBuf::from(&repo_dir);
             origin_path_buf.push(&dotfile.file);
@@ -147,8 +147,30 @@ impl Manifest {
         repo: Repository,
         sync_all: bool,
         target_dotfiles: Vec<String>,
-        commit_msg: Option<&str>
+        commit_msg: Option<&str>,
+        metadata: Option<AggregatedDotfileMetadata>
     ) -> Result<(), Box<dyn Error>> {
+        let theme = get_theme();
+
+        // TODO: USE THE METADATA
+        if metadata.is_none() {
+            println!(
+                "{}",
+                style(
+                    "! Could not find any metadata on the currently installed dotfiles. Proceed with naive sync and overwrite remote files?"
+                )
+                .yellow()
+            );
+            if !Confirm::with_theme(&theme)
+                .with_prompt("Use naive sync?")
+                .default(false)
+                .wait_for_newline(true)
+                .interact()
+                .unwrap() {
+                    return Err("Aborting due to lack of dotfile metadata".into())
+                }
+        }
+
         let dotfiles = self.get_target_dotfiles(target_dotfiles, sync_all);
 
         let mut relative_paths = vec![];
@@ -346,16 +368,16 @@ impl AggregatedDotfileMetadata {
         AggregatedDotfileMetadata::default()
     }
 
-    /// Get the current AggregatedDotfileMetadata for this machine, or create one if it doesn't exist.
+    /// Get the current AggregatedDotfileMetadata for this machine, or return None if it doesn't exist.
     ///
     /// # Examples
     ///
     /// ```
     /// use jointhedots::structs::AggregatedDotfileMetadata;
     ///
-    /// let manifest = AggregatedDotfileMetadata::get_current().unwrap();
+    /// let manifest = AggregatedDotfileMetadata::get().unwrap();
     /// ```
-    pub fn get_current() -> Result<AggregatedDotfileMetadata, Box<dyn Error>> {
+    pub fn get() -> Result<Option<AggregatedDotfileMetadata>, Box<dyn Error>> {
         let path = shellexpand::tilde(INSTALLED_DOTFILES_MANIFEST_PATH);
         let reader = File::open(path.as_ref()).ok();
 
@@ -363,10 +385,23 @@ impl AggregatedDotfileMetadata {
             let config: AggregatedDotfileMetadata = serde_yaml::from_reader(file).map_err(|_| {
             "Could not parse manifest. Check ~/.local/share/jointhedots/manifest.yaml for issues"
         })?;
-            Ok(config)
+            Ok(Some(config))
         } else {
-            Ok(AggregatedDotfileMetadata::new())
+            Ok(None)
         }
+    }
+
+    /// Get the current AggregatedDotfileMetadata for this machine, or create one if it doesn't exist.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use jointhedots::structs::AggregatedDotfileMetadata;
+    ///
+    /// let manifest = AggregatedDotfileMetadata::get_or_create().unwrap();
+    /// ```
+    pub fn get_or_create() -> Result<AggregatedDotfileMetadata, Box<dyn Error>> {
+        Ok(AggregatedDotfileMetadata::get()?.unwrap_or_else(|| AggregatedDotfileMetadata::new()))
     }
 }
 

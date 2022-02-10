@@ -71,6 +71,12 @@ The manifest file should be located in the root of the repository and called "jt
 
 A JSON Schema for the manifest is available [here](https://github.com/dob9601/jointhedots/blob/master/src/dotfile_schema.json). This can be used in conjunction with certain plugins to provide language server support for jtd manifests.
 
+## FAQ
+
+*Q: The different platforms I use require differing installation steps, can I target multiple platforms?*
+
+A: Yes! You can write a different manifest for each platform and specify the manifest to use with the `--manifest` flag
+
 ## Installation
 
 ### Manual

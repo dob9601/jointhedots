@@ -1,14 +1,11 @@
 use std::error::Error;
 
-
 use tempfile::tempdir;
 
 use crate::{
     cli::SyncSubcommandArgs,
-    git::{
-        operations::clone_repo,
-        remote::get_host_git_url,
-    },
+    git::{operations::clone_repo, remote::get_host_git_url},
+    structs::AggregatedDotfileMetadata,
     utils::get_manifest,
 };
 
@@ -23,5 +20,11 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
 
     let manifest = get_manifest(&manifest_path)?;
 
-    manifest.sync(repo, args.all, args.target_dotfiles, args.commit_msg.as_deref())
+    manifest.sync(
+        repo,
+        args.all,
+        args.target_dotfiles,
+        args.commit_msg.as_deref(),
+        AggregatedDotfileMetadata::get()?,
+    )
 }
