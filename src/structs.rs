@@ -5,10 +5,12 @@ use std::{collections::HashMap, path::Path};
 
 use console::style;
 use dialoguer::{Confirm, MultiSelect};
-use git2::Repository;
+use git2::{Commit, Repository, MergeOptions};
 use serde::{Deserialize, Serialize};
 
-use crate::git::operations::{get_head_hash, add_and_commit, push};
+use crate::git::operations::{
+    add_and_commit, checkout_ref, get_commit, get_head, get_head_hash, push, normal_merge,
+};
 use crate::utils::{
     get_theme, hash_command_vec, run_command_vec, INSTALLED_DOTFILES_MANIFEST_PATH,
 };
@@ -99,7 +101,11 @@ impl Manifest {
         Ok(())
     }
 
-    fn get_target_dotfiles(&self, target_dotfiles: Vec<String>, all: bool) -> Vec<(&String, &Dotfile)> {
+    fn get_target_dotfiles(
+        &self,
+        target_dotfiles: Vec<String>,
+        all: bool,
+    ) -> Vec<(&String, &Dotfile)> {
         let theme = get_theme();
 
         if all {
@@ -148,12 +154,12 @@ impl Manifest {
         sync_all: bool,
         target_dotfiles: Vec<String>,
         commit_msg: Option<&str>,
-        metadata: Option<AggregatedDotfileMetadata>
+        aggregated_metadata: Option<AggregatedDotfileMetadata>,
     ) -> Result<(), Box<dyn Error>> {
         let theme = get_theme();
 
         // TODO: USE THE METADATA
-        if metadata.is_none() {
+        if aggregated_metadata.is_none() {
             println!(
                 "{}",
                 style(
@@ -166,22 +172,29 @@ impl Manifest {
                 .default(false)
                 .wait_for_newline(true)
                 .interact()
-                .unwrap() {
-                    return Err("Aborting due to lack of dotfile metadata".into())
-                }
+                .unwrap()
+            {
+                return Err("Aborting due to lack of dotfile metadata".into());
+            }
         }
 
         let dotfiles = self.get_target_dotfiles(target_dotfiles, sync_all);
 
         let mut relative_paths = vec![];
 
-        // Safe to unwrap here, repo.path() points to .git folder. Path will always
-        // have a component after parent.
-        let repo_dir = repo.path().parent().unwrap().to_owned();
-
         for (dotfile_name, dotfile) in dotfiles.iter() {
             println!("Syncing {}", dotfile_name);
-            relative_paths.push(dotfile.sync(&repo_dir)?);
+            let path = if let Some(ref aggregated_metadata) = aggregated_metadata {
+                dotfile.sync(
+                    &repo,
+                    dotfile_name,
+                    aggregated_metadata.data.get(dotfile_name.as_str()),
+                )?
+            } else {
+                dotfile.sync(&repo, dotfile_name, None)?
+            };
+
+            relative_paths.push(path);
         }
 
         let commit_msg = if let Some(message) = commit_msg {
@@ -197,9 +210,11 @@ impl Manifest {
             )
         };
 
-        add_and_commit(&repo, relative_paths, &commit_msg)?;
+        // add_and_commit(&repo, relative_paths, &commit_msg, None)?;
 
         push(&repo)?;
+        println!("{:?}", &repo.path());
+        std::thread::sleep(std::time::Duration::from_secs(99999));
 
         println!("{}", style("✔ Successfully synced changes!").green());
 
@@ -338,19 +353,52 @@ impl Dotfile {
         Ok(metadata)
     }
 
-    pub fn sync(&self, repo_dir: &Path) -> Result<&Path, Box<dyn Error>> {
-        let mut target_path_buf = repo_dir.to_path_buf();
+    pub fn sync<'a>(
+        &self,
+        repo: &'a Repository,
+        dotfile_name: &str,
+        metadata: Option<&DotfileMetadata>,
+    ) -> Result<Commit<'a>, Box<dyn Error>> {
+        // Safe to unwrap here, repo.path() points to .git folder. Path will always
+        // have a component after parent.
+        let mut target_path_buf = repo.path().parent().unwrap().to_owned();
         target_path_buf.push(&self.file);
         let target_path = target_path_buf.as_path();
 
-        let origin_path_unexpanded = &self
-                .target
-                .to_string_lossy();
+        let origin_path_unexpanded = &self.target.to_string_lossy();
         let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
         let origin_path = Path::new(origin_path_str.as_ref());
 
-        fs::copy(origin_path, target_path)?;
-        Ok(Path::new(&self.file))
+        let commit = if let Some(metadata) = metadata {
+            let parent_commit = get_commit(repo, &metadata.commit_hash)?;
+            let merge_target = get_head(repo)?;
+
+            fs::copy(origin_path, target_path)?;
+            let new_commit = add_and_commit(
+                repo,
+                vec![Path::new(&self.file)],
+                format!("🔁 Sync dotfiles for {}", dotfile_name).as_str(),
+                Some(vec![parent_commit]),
+                None
+            )?;
+            println!("{}", merge_target.id());
+            println!("{}", new_commit.id());
+
+            normal_merge(repo, &merge_target, &new_commit)?;
+            new_commit
+        } else {
+            fs::copy(origin_path, target_path)?;
+            let new_commit = add_and_commit(
+                repo,
+                vec![Path::new(&self.file)],
+                format!("Sync {}", dotfile_name).as_str(),
+                None,
+                Some("HEAD")
+            )?;
+            new_commit
+        };
+
+        Ok(commit)
     }
 }
 
@@ -401,7 +449,7 @@ impl AggregatedDotfileMetadata {
     /// let manifest = AggregatedDotfileMetadata::get_or_create().unwrap();
     /// ```
     pub fn get_or_create() -> Result<AggregatedDotfileMetadata, Box<dyn Error>> {
-        Ok(AggregatedDotfileMetadata::get()?.unwrap_or_else(|| AggregatedDotfileMetadata::new()))
+        Ok(AggregatedDotfileMetadata::get()?.unwrap_or_else(AggregatedDotfileMetadata::new))
     }
 }
 
