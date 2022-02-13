@@ -26,6 +26,14 @@ pub struct InstallSubcommandArgs {
     pub method: ConnectionMethod,
 
     #[clap(
+        long = "manifest",
+        short = 'n',
+        help = "The manifest to use in the repository",
+        default_value = "jtd.yaml"
+    )]
+    pub manifest: String,
+
+    #[clap(
         help = "The dotfiles to install. If unspecified, install all of them",
         conflicts_with = "all"
     )]
@@ -83,6 +91,14 @@ pub struct SyncSubcommandArgs {
         default_value = "ssh"
     )]
     pub method: ConnectionMethod,
+
+    #[clap(
+        long = "manifest",
+        short = 'n',
+        help = "The manifest to use in the repository",
+        default_value = "jtd.yaml"
+    )]
+    pub manifest: String,
 
     #[clap(
         arg_enum,
