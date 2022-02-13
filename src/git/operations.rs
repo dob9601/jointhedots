@@ -1,7 +1,9 @@
+use std::io::{stdin, stdout, Write};
 use std::{error::Error, path::Path, sync::RwLock};
 
 use console::style;
-use dialoguer::{Input, Password};
+use dialoguer::{Confirm, Input, Password};
+use git2::build::CheckoutBuilder;
 use git2::Error as Git2Error;
 use git2::{Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature};
 use git2_credentials::{CredentialHandler, CredentialUI};
@@ -141,7 +143,7 @@ pub fn add_and_commit<'a>(
     file_paths: Vec<&Path>,
     message: &str,
     parents: Option<Vec<Commit>>,
-    update_head: Option<&str>
+    update_head: Option<&str>,
 ) -> Result<Commit<'a>, Box<dyn Error>> {
     let mut index = repo.index()?;
 
@@ -158,15 +160,14 @@ pub fn add_and_commit<'a>(
         Some(parent_vec) => parent_vec,
         None => vec![get_head(repo)?],
     };
-    let oid = repo
-        .commit(
-            update_head,
-            &signature,
-            &signature,
-            message,
-            &tree,
-            &parents.iter().collect::<Vec<&Commit>>(),
-        )?;
+    let oid = repo.commit(
+        update_head,
+        &signature,
+        &signature,
+        message,
+        &tree,
+        &parents.iter().collect::<Vec<&Commit>>(),
+    )?;
 
     repo.find_commit(oid)
         .map_err(|err| format!("Failed to commit to repo: {}", err.to_string()).into())
@@ -176,7 +177,7 @@ pub fn add_and_commit<'a>(
 pub fn normal_merge(
     repo: &Repository,
     main_tip: &Commit,
-    feature_tip: &Commit
+    feature_tip: &Commit,
 ) -> Result<(), git2::Error> {
     let local_tree = repo.find_commit(main_tip.id())?.tree()?;
     let remote_tree = repo.find_commit(feature_tip.id())?.tree()?;
@@ -186,8 +187,35 @@ pub fn normal_merge(
     let mut idx = repo.merge_trees(&ancestor, &local_tree, &remote_tree, None)?;
 
     if idx.has_conflicts() {
-        println!("Merge conficts detected...");
-        repo.checkout_index(Some(&mut idx), None)?;
+        let repo_dir = repo.path().to_string_lossy().replace(".git/", "");
+        repo.checkout_index(
+            Some(&mut idx),
+            Some(CheckoutBuilder::default().allow_conflicts(true).conflict_style_merge(true)),
+        )?;
+        println!(
+            "{}",
+            style(format!(
+                "⚠ Merge conficts detected. Resolve them manually with a text editor here: {}",
+                repo_dir
+            ))
+            .red()
+        );
+
+        loop {
+            print!("Press ENTER when conflicts are resolved");
+            let _ = stdout().flush();
+
+            let mut _newline = String::new();
+            stdin().read_line(&mut _newline).unwrap_or(0);
+
+            let index = repo.index()?;
+            if !index.has_conflicts() {
+                break
+            } else {
+                println!("Conflicts not resolved")
+            }
+        }
+
         return Ok(());
     }
     let result_tree = repo.find_tree(idx.write_tree_to(repo)?)?;

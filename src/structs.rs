@@ -381,8 +381,6 @@ impl Dotfile {
                 Some(vec![parent_commit]),
                 None
             )?;
-            println!("{}", merge_target.id());
-            println!("{}", new_commit.id());
 
             normal_merge(repo, &merge_target, &new_commit)?;
             new_commit
