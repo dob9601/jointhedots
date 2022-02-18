@@ -29,7 +29,8 @@ pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
         println!("{} {}", style(format!("Step #{}:", stage)).cyan(), command);
         io::stdout().flush()?;
 
-        let command_vec: Vec<&str> = command.split(' ').collect();
+        let expanded_command = shellexpand::tilde(command);
+        let command_vec: Vec<&str> = expanded_command.split(' ').collect();
         Command::new(command_vec[0])
             .args(&command_vec[1..])
             .spawn()?
