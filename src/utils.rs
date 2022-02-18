@@ -73,6 +73,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_run_command_vec() {
+        let path = Path::new("/tmp/test-jtd");
+        let command_vec = vec![
+            format!("touch {}", path.to_string_lossy()),
+        ];
+        run_command_vec(&command_vec).expect("Could not run command vec");
+        assert!(Path::new("/tmp/test-jtd").exists());
+
+
+    }
+
+    #[test]
     fn test_hash_command_vec() {
         let command_vec = vec![
             String::from("echo \"Hi!\""),
