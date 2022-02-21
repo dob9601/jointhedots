@@ -42,9 +42,7 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         target_path_buf.push(&dotfile.file);
         let target_path = target_path_buf.as_path();
 
-        let origin_path_unexpanded = &dotfile
-                .target
-                .to_string_lossy();
+        let origin_path_unexpanded = &dotfile.target.to_string_lossy();
         let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
         let origin_path = Path::new(origin_path_str.as_ref());
 

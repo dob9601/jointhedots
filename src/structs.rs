@@ -239,7 +239,8 @@ impl Dotfile {
                 "  ✔ Installed config file {} to location {}",
                 &self.file,
                 target_path.to_str().expect("Invalid unicode in path")
-            )).green()
+            ))
+            .green()
         );
 
         Ok(())

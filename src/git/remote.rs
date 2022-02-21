@@ -1,12 +1,12 @@
 use std::{error::Error, str::FromStr};
 
 use clap::ArgEnum;
-use strum_macros::{EnumIter, Display};
+use strum_macros::{Display, EnumIter};
 
 #[derive(ArgEnum, Clone, EnumIter, Display, Debug)]
 pub enum ConnectionMethod {
     SSH,
-    HTTPS
+    HTTPS,
 }
 
 impl FromStr for ConnectionMethod {
@@ -25,7 +25,7 @@ impl FromStr for ConnectionMethod {
 #[clap(rename_all = "PascalCase")]
 pub enum RepoHostName {
     GitHub,
-    GitLab
+    GitLab,
 }
 
 impl FromStr for RepoHostName {
@@ -42,20 +42,24 @@ impl FromStr for RepoHostName {
 
 pub struct RepoHost {
     ssh_prefix: &'static str,
-    https_prefix: &'static str
+    https_prefix: &'static str,
 }
 
 const GITLAB: RepoHost = RepoHost {
     ssh_prefix: "git@gitlab.com:",
-    https_prefix: "https://gitlab.com/"
+    https_prefix: "https://gitlab.com/",
 };
 
 const GITHUB: RepoHost = RepoHost {
     ssh_prefix: "git@github.com:",
-    https_prefix: "https://github.com/"
+    https_prefix: "https://github.com/",
 };
 
-pub fn get_host_git_url(repository: &str, host: &RepoHostName, method: &ConnectionMethod) -> Result<String, Box<dyn Error>> {
+pub fn get_host_git_url(
+    repository: &str,
+    host: &RepoHostName,
+    method: &ConnectionMethod,
+) -> Result<String, Box<dyn Error>> {
     let repo_host = match *host {
         RepoHostName::GitHub => GITHUB,
         RepoHostName::GitLab => GITLAB,
@@ -63,7 +67,10 @@ pub fn get_host_git_url(repository: &str, host: &RepoHostName, method: &Connecti
 
     match method {
         ConnectionMethod::SSH => Ok(format!("{}{}{}", repo_host.ssh_prefix, repository, ".git")),
-        ConnectionMethod::HTTPS => Ok(format!("{}{}{}", repo_host.https_prefix, repository, ".git")),
+        ConnectionMethod::HTTPS => Ok(format!(
+            "{}{}{}",
+            repo_host.https_prefix, repository, ".git"
+        )),
     }
 }
 
@@ -78,12 +85,19 @@ mod tests {
         let method = ConnectionMethod::SSH;
 
         let host_url = get_host_git_url(repo, &host, &method).expect("Failed to get host url");
-        assert_eq!(host_url, String::from("git@github.com:dob9601/dotfiles.git"))
+        assert_eq!(
+            host_url,
+            String::from("git@github.com:dob9601/dotfiles.git")
+        )
     }
 
     #[test]
     fn test_repo_host_name_from_str() {
         let hostname = "github";
-        assert_eq!(<RepoHostName as std::str::FromStr>::from_str(hostname).expect("Could not convert from str"), RepoHostName::GitHub)
+        assert_eq!(
+            <RepoHostName as std::str::FromStr>::from_str(hostname)
+                .expect("Could not convert from str"),
+            RepoHostName::GitHub
+        )
     }
 }
