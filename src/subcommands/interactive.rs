@@ -1,10 +1,14 @@
 use console::style;
 use dialoguer::{Confirm, Input, Select};
 use regex::Regex;
-use strum::IntoEnumIterator;
 use std::{error::Error, str::FromStr};
+use strum::IntoEnumIterator;
 
-use crate::{cli::InstallSubcommandArgs, utils::get_theme, git::remote::{RepoHostName, ConnectionMethod}};
+use crate::{
+    cli::InstallSubcommandArgs,
+    git::remote::{ConnectionMethod, RepoHostName},
+    utils::get_theme,
+};
 
 use super::install_subcommand_handler;
 
@@ -60,7 +64,8 @@ pub fn interactive_subcommand_handler() -> Result<(), Box<dyn Error>> {
                 Err("Manifest must be a yaml file (file extension of yaml/yml)")
             }
         })
-        .interact_text().unwrap();
+        .interact_text()
+        .unwrap();
 
     let force = Confirm::with_theme(&theme)
         .with_prompt("Overwrite existing dotfiles without prompting")
