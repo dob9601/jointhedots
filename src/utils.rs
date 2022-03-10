@@ -29,7 +29,8 @@ pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
         println!("{} {}", style(format!("Step #{}:", stage)).cyan(), command);
         io::stdout().flush()?;
 
-        let command_vec: Vec<&str> = command.split(' ').collect();
+        let expanded_command = shellexpand::tilde(command);
+        let command_vec: Vec<&str> = expanded_command.split(' ').collect();
         Command::new(command_vec[0])
             .args(&command_vec[1..])
             .spawn()?
@@ -70,6 +71,14 @@ pub(crate) fn hash_command_vec(command_vec: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_run_command_vec() {
+        let path = Path::new("/tmp/test-jtd");
+        let command_vec = vec![format!("touch {}", path.to_string_lossy())];
+        run_command_vec(&command_vec).expect("Could not run command vec");
+        assert!(Path::new("/tmp/test-jtd").exists());
+    }
 
     #[test]
     fn test_hash_command_vec() {
