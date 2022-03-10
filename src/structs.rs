@@ -5,11 +5,11 @@ use std::{collections::HashMap, path::Path};
 
 use console::style;
 use dialoguer::{Confirm, MultiSelect};
-use git2::{Commit, Repository, MergeOptions};
+use git2::{Commit, Repository};
 use serde::{Deserialize, Serialize};
 
 use crate::git::operations::{
-    add_and_commit, checkout_ref, get_commit, get_head, get_head_hash, push, normal_merge,
+    add_and_commit, get_commit, get_head, get_head_hash, normal_merge, push,
 };
 use crate::utils::{
     get_theme, hash_command_vec, run_command_vec, INSTALLED_DOTFILES_MANIFEST_PATH,
@@ -158,8 +158,24 @@ impl Manifest {
     ) -> Result<(), Box<dyn Error>> {
         let theme = get_theme();
 
-        // TODO: USE THE METADATA
-        if aggregated_metadata.is_none() {
+        let dotfiles = self.get_target_dotfiles(target_dotfiles, sync_all);
+
+        // TODO: Sync should return commit objects as opposed to paths so that a vector can be
+        // constructed from them and all commits can be squashed in 1 go
+        if let Some(aggregated_metadata) = aggregated_metadata {
+            let mut relative_paths = vec![];
+
+            for (dotfile_name, dotfile) in dotfiles.iter() {
+                println!("Syncing {}", dotfile_name);
+                let path = dotfile.sync(
+                    &repo,
+                    dotfile_name,
+                    aggregated_metadata.data.get(dotfile_name.as_str()),
+                )?;
+
+                relative_paths.push(path);
+            }
+        } else {
             println!(
                 "{}",
                 style(
@@ -167,34 +183,20 @@ impl Manifest {
                 )
                 .yellow()
             );
-            if !Confirm::with_theme(&theme)
+            if Confirm::with_theme(&theme)
                 .with_prompt("Use naive sync?")
                 .default(false)
                 .wait_for_newline(true)
                 .interact()
                 .unwrap()
             {
+                for (dotfile_name, dotfile) in dotfiles.iter() {
+                    println!("Syncing {} naively", dotfile_name);
+                    dotfile.sync(&repo, dotfile_name, None)?;
+                }
+            } else {
                 return Err("Aborting due to lack of dotfile metadata".into());
             }
-        }
-
-        let dotfiles = self.get_target_dotfiles(target_dotfiles, sync_all);
-
-        let mut relative_paths = vec![];
-
-        for (dotfile_name, dotfile) in dotfiles.iter() {
-            println!("Syncing {}", dotfile_name);
-            let path = if let Some(ref aggregated_metadata) = aggregated_metadata {
-                dotfile.sync(
-                    &repo,
-                    dotfile_name,
-                    aggregated_metadata.data.get(dotfile_name.as_str()),
-                )?
-            } else {
-                dotfile.sync(&repo, dotfile_name, None)?
-            };
-
-            relative_paths.push(path);
         }
 
         let commit_msg = if let Some(message) = commit_msg {
@@ -379,7 +381,7 @@ impl Dotfile {
                 vec![Path::new(&self.file)],
                 format!("🔁 Sync dotfiles for {}", dotfile_name).as_str(),
                 Some(vec![parent_commit]),
-                None
+                None,
             )?;
 
             normal_merge(repo, &merge_target, &new_commit)?;
@@ -391,7 +393,7 @@ impl Dotfile {
                 vec![Path::new(&self.file)],
                 format!("Sync {}", dotfile_name).as_str(),
                 None,
-                Some("HEAD")
+                Some("HEAD"),
             )?;
             new_commit
         };
