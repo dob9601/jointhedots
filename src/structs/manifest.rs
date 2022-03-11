@@ -162,11 +162,11 @@ impl Manifest {
         let theme = get_theme();
 
         let dotfiles = self.get_target_dotfiles(target_dotfiles, sync_all);
+        let mut commits = vec![];
 
         // TODO: Sync should return commit objects as opposed to paths so that a vector can be
         // constructed from them and all commits can be squashed in 1 go
         if let Some(aggregated_metadata) = aggregated_metadata {
-            let mut commits = vec![];
 
             for (dotfile_name, dotfile) in dotfiles.iter() {
                 println!("Syncing {}", dotfile_name);
@@ -195,13 +195,14 @@ impl Manifest {
             {
                 for (dotfile_name, dotfile) in dotfiles.iter() {
                     println!("Syncing {} naively", dotfile_name);
-                    dotfile.sync(&repo, dotfile_name, None)?;
+                    commits.push(dotfile.sync(&repo, dotfile_name, None)?);
                 }
             } else {
                 return Err("Aborting due to lack of dotfile metadata".into());
             }
         }
 
+        // TODO: Squash commits
         let commit_msg = if let Some(message) = commit_msg {
             message.to_string()
         } else {
@@ -218,8 +219,6 @@ impl Manifest {
         // add_and_commit(&repo, relative_paths, &commit_msg, None)?;
 
         push(&repo)?;
-        println!("{:?}", &repo.path());
-        std::thread::sleep(std::time::Duration::from_secs(99999));
 
         println!("{}", style("✔ Successfully synced changes!").green());
 

@@ -2,7 +2,7 @@ use std::io::{stdin, stdout, Write};
 use std::{error::Error, path::Path, sync::RwLock};
 
 use console::style;
-use dialoguer::{Confirm, Input, Password};
+use dialoguer::{Input, Password};
 use git2::build::CheckoutBuilder;
 use git2::Error as Git2Error;
 use git2::{Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature};
@@ -192,6 +192,7 @@ pub fn normal_merge(
             Some(&mut idx),
             Some(CheckoutBuilder::default().allow_conflicts(true).conflict_style_merge(true)),
         )?;
+        // TODO: FIX MERGE CONFLICT HANDLING
         println!(
             "{}",
             style(format!(
