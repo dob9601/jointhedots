@@ -14,24 +14,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --release
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-    - name: Bundle release artifacts
-      run: |
-        mkdir release
-        mv src/jtd-wrapper.sh release/jtd.sh
-        mv target/release/jtd release/jtd
+      - name: Build
+        run: cargo build --release
 
-    - name: Ensure Cargo.toml version matches git tag
+      - name: Bundle release artifacts
+        run: |
+          mkdir release
+          mv src/jtd-wrapper.sh release/jtd.sh
+          mv target/release/jtd release/jtd
 
-    - name: Publish to Crates.io
-      run: |
-        cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Ensure Cargo.toml version matches git tag
 
-    - name: Publish to GitHub
-      uses: softprops/action-gh-release@v1
-      with:
-        fail_on_unmatched_files: true
-        files: release/*
+      - name: Publish to Crates.io
+        run: |
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Publish to GitHub
+        uses: softprops/action-gh-release@v1
+        with:
+          fail_on_unmatched_files: true
+          files: release/*
