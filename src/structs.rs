@@ -35,7 +35,10 @@ impl Manifest {
         let head_hash = get_head_hash(&repo)?;
 
         let mut skip_install_commands = false;
-        if self.has_run_stages(Some(target_dotfiles.iter().map(|v| v.as_str()).collect())) {
+
+        let dotfiles = self.get_target_dotfiles(target_dotfiles, install_all);
+
+        if self.has_run_stages(Some(dotfiles.iter().map(|(v, _)| v.as_str()).collect())) {
             println!(
                 "{}",
                 style(
@@ -51,8 +54,6 @@ impl Manifest {
                 .interact()
                 .unwrap();
         }
-
-        let dotfiles = self.get_target_dotfiles(target_dotfiles, install_all);
 
         // Safe to unwrap here, repo.path() points to .git folder. Path will always
         // have a component after parent.
