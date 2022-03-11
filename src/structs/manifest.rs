@@ -1,12 +1,20 @@
 use console::style;
+use dialoguer::{Confirm, MultiSelect};
 use git2::Repository;
 use serde::Deserialize;
-use std::{error::Error, collections::HashMap, path::PathBuf, fs::{self, File}};
-use dialoguer::{Confirm, MultiSelect};
+use std::{
+    collections::HashMap,
+    error::Error,
+    fs::{self, File},
+    path::PathBuf,
+};
 
-use crate::{git::operations::{push, get_head_hash}, utils::get_theme};
+use crate::{
+    git::operations::{get_head_hash, push},
+    utils::get_theme,
+};
 
-use super::{Dotfile, AggregatedDotfileMetadata};
+use super::{AggregatedDotfileMetadata, Dotfile};
 
 /// Represents an aggregation of [Dotfile]s, as found in the `jtd.yaml` file. This is done via a
 /// mapping of `dotfile_name` to [Dotfile]
@@ -167,7 +175,6 @@ impl Manifest {
         // TODO: Sync should return commit objects as opposed to paths so that a vector can be
         // constructed from them and all commits can be squashed in 1 go
         if let Some(aggregated_metadata) = aggregated_metadata {
-
             for (dotfile_name, dotfile) in dotfiles.iter() {
                 println!("Syncing {}", dotfile_name);
                 let commit = dotfile.sync(
@@ -235,4 +242,3 @@ impl IntoIterator for Manifest {
         self.data.into_iter()
     }
 }
-

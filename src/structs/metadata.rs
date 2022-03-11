@@ -1,10 +1,9 @@
-use std::{error::Error, fs::File};
 use std::collections::HashMap;
+use std::{error::Error, fs::File};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::utils::INSTALLED_DOTFILES_MANIFEST_PATH;
-
 
 /// Struct representing a `manifest.yaml` file, typically found in ~/.local/share/jointhedots.
 /// Represents an aggregation of the metadata of all of the dotfiles in a Manifest via a mapping of

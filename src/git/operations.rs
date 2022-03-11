@@ -190,7 +190,11 @@ pub fn normal_merge(
         let repo_dir = repo.path().to_string_lossy().replace(".git/", "");
         repo.checkout_index(
             Some(&mut idx),
-            Some(CheckoutBuilder::default().allow_conflicts(true).conflict_style_merge(true)),
+            Some(
+                CheckoutBuilder::default()
+                    .allow_conflicts(true)
+                    .conflict_style_merge(true),
+            ),
         )?;
         // TODO: FIX MERGE CONFLICT HANDLING
         println!(
@@ -211,7 +215,7 @@ pub fn normal_merge(
 
             let index = repo.index()?;
             if !index.has_conflicts() {
-                break
+                break;
             } else {
                 println!("Conflicts not resolved")
             }
