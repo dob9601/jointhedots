@@ -210,7 +210,7 @@ impl Manifest {
         }
 
         // TODO: Squash commits
-        let commit_msg = if let Some(message) = commit_msg {
+        let _commit_msg = if let Some(message) = commit_msg {
             message.to_string()
         } else {
             format!(
