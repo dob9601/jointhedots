@@ -37,8 +37,12 @@ impl Manifest {
         let mut skip_install_commands = false;
 
         let dotfiles = self.get_target_dotfiles(target_dotfiles, install_all);
+        let mut aggregated_metadata = AggregatedDotfileMetadata::get_or_create()?;
 
-        if self.has_run_stages(Some(dotfiles.iter().map(|(v, _)| v.as_str()).collect())) {
+        if self.has_unexecuted_run_stages(
+            Some(dotfiles.iter().map(|(v, _)| v.as_str()).collect()),
+            &aggregated_metadata,
+        ) {
             println!(
                 "{}",
                 style(
@@ -59,7 +63,6 @@ impl Manifest {
         // have a component after parent.
         let repo_dir = repo.path().parent().unwrap().to_owned();
 
-        let mut aggregated_metadata = AggregatedDotfileMetadata::get_or_create()?;
         for (dotfile_name, dotfile) in dotfiles {
             let mut origin_path_buf = PathBuf::from(&repo_dir);
             origin_path_buf.push(&dotfile.file);
@@ -137,16 +140,22 @@ impl Manifest {
         }
     }
 
-    /// Return whether this Manifest contains dotfiles containing potentially dangerous run stages.
-    /// Optionally can take a vector of [Dotfile]s for testing a subset of the manifest.
-    pub fn has_run_stages(&self, dotfile_names: Option<Vec<&str>>) -> bool {
+    /// Return whether this Manifest contains dotfiles containing unexecuted, potentially dangerous
+    /// run stages. Optionally can take a vector of [Dotfile]s for testing a subset of the manifest.
+    pub fn has_unexecuted_run_stages(
+        &self,
+        dotfile_names: Option<Vec<&str>>,
+        metadata: &AggregatedDotfileMetadata,
+    ) -> bool {
         let dotfile_names =
             dotfile_names.unwrap_or_else(|| self.data.keys().map(|k| k.as_str()).collect());
 
         self.data
             .iter()
             .filter(|(dotfile_name, _)| dotfile_names.contains(&dotfile_name.as_str()))
-            .any(|(_, dotfile)| dotfile.has_run_stages())
+            .any(|(dotfile_name, dotfile)| {
+                dotfile.has_unexecuted_run_stages(&metadata.data.get(dotfile_name))
+            })
     }
 
     pub fn sync(
@@ -164,17 +173,17 @@ impl Manifest {
         // TODO: Sync should return commit objects as opposed to paths so that a vector can be
         // constructed from them and all commits can be squashed in 1 go
         if let Some(aggregated_metadata) = aggregated_metadata {
-            let mut relative_paths = vec![];
+            let mut commits = vec![];
 
             for (dotfile_name, dotfile) in dotfiles.iter() {
                 println!("Syncing {}", dotfile_name);
-                let path = dotfile.sync(
+                let commit = dotfile.sync(
                     &repo,
                     dotfile_name,
                     aggregated_metadata.data.get(dotfile_name.as_str()),
                 )?;
 
-                relative_paths.push(path);
+                commits.push(commit);
             }
         } else {
             println!(
@@ -244,7 +253,7 @@ pub struct Dotfile {
 }
 
 impl Dotfile {
-    pub fn hash_pre_install(&self) -> String {
+    fn hash_pre_install(&self) -> String {
         if let Some(pre_install) = &self.pre_install {
             // Unwrap is safe, hash will always be utf-8
             hash_command_vec(pre_install)
@@ -253,7 +262,7 @@ impl Dotfile {
         }
     }
 
-    pub fn hash_post_install(&self) -> String {
+    fn hash_post_install(&self) -> String {
         if let Some(post_install) = &self.post_install {
             // Unwrap is safe, hash will always be utf-8
             hash_command_vec(post_install)
@@ -263,11 +272,26 @@ impl Dotfile {
     }
 
     /// Return whether this dotfile has run stages, i.e. pre_install or post_install is not `None`
-    pub fn has_run_stages(&self) -> bool {
-        self.pre_install.is_some() || self.post_install.is_some()
+    /// and the hash of the pre/post install stages are different to the one in the metadata
+    pub fn has_unexecuted_run_stages(&self, maybe_metadata: &Option<&DotfileMetadata>) -> bool {
+        if let Some(metadata) = maybe_metadata {
+            // If metadata is available, don't return true if the steps have already
+            // been executed
+            (self.pre_install.is_some() && metadata.pre_install_hash != self.hash_pre_install())
+                || (self.post_install.is_some()
+                    && metadata.post_install_hash != self.hash_post_install())
+        } else {
+            // Otherwise just depend on the presence of the steps
+            self.pre_install.is_some() || self.post_install.is_some()
+        }
     }
 
-    fn run_pre_install(&self, metadata: &Option<DotfileMetadata>) -> Result<(), Box<dyn Error>> {
+    fn run_pre_install(
+        &self,
+        metadata: &Option<DotfileMetadata>,
+    ) -> Result<String, Box<dyn Error>> {
+        let mut hash = String::new();
+
         if let Some(pre_install) = &self.pre_install {
             let mut skip_pre_install = false;
 
@@ -281,12 +305,18 @@ impl Dotfile {
             if !skip_pre_install {
                 println!("{}", style("  ✔ Running pre-install steps").green());
                 run_command_vec(pre_install)?;
+                hash = self.hash_pre_install();
             }
         }
-        Ok(())
+        Ok(hash)
     }
 
-    fn run_post_install(&self, metadata: &Option<DotfileMetadata>) -> Result<(), Box<dyn Error>> {
+    fn run_post_install(
+        &self,
+        metadata: &Option<DotfileMetadata>,
+    ) -> Result<String, Box<dyn Error>> {
+        let mut hash = String::new();
+
         if let Some(post_install) = &self.post_install {
             let mut skip_post_install = false;
 
@@ -300,9 +330,10 @@ impl Dotfile {
             if !skip_post_install {
                 println!("{}", style("  ✔ Running post-install steps").green());
                 run_command_vec(post_install)?;
+                hash = self.hash_post_install();
             }
         }
-        Ok(())
+        Ok(hash)
     }
 
     fn install_dotfile(&self, repo_dir: &Path) -> Result<(), Box<dyn Error>> {
@@ -341,19 +372,23 @@ impl Dotfile {
         commit_hash: &str,
         skip_install_commands: bool,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        if !skip_install_commands {
-            self.run_pre_install(&metadata)?;
-        }
+        let pre_install_hash = if !skip_install_commands {
+            self.run_pre_install(&metadata)?
+        } else {
+            String::new()
+        };
 
         self.install_dotfile(repo_dir)?;
 
-        if !skip_install_commands {
-            self.run_post_install(&metadata)?;
-        }
+        let post_install_hash = if !skip_install_commands {
+            self.run_post_install(&metadata)?
+        } else {
+            String::new()
+        };
 
-        let metadata = metadata.unwrap_or_else(|| DotfileMetadata::new(commit_hash, self));
+        let new_metadata = DotfileMetadata::new(commit_hash, pre_install_hash, post_install_hash);
 
-        Ok(metadata)
+        Ok(new_metadata)
     }
 
     pub fn sync<'a>(
@@ -471,11 +506,11 @@ pub struct DotfileMetadata {
 
 impl DotfileMetadata {
     /// Extract the metadata from a [Dotfile] and the commit hash the dotfile was installed from
-    pub fn new(commit_hash: &str, dotfile: &Dotfile) -> Self {
+    pub fn new(commit_hash: &str, pre_install_hash: String, post_install_hash: String) -> Self {
         DotfileMetadata {
             commit_hash: commit_hash.to_string(),
-            pre_install_hash: dotfile.hash_pre_install(),
-            post_install_hash: dotfile.hash_pre_install(),
+            pre_install_hash,
+            post_install_hash,
         }
     }
 }
