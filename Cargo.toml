@@ -1,6 +1,6 @@
 [package]
 name = "jointhedots"
-version = "0.0.13"
+version = "0.0.14"
 edition = "2018"
 license = "MIT"
 authors = ["Daniel O'Brien <dob9601@gmail.com>"]

@@ -17,6 +17,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Ensure Cargo.toml version matches git tag
+        run: |
+          toml_version=v$(sed -n 's/^version = "\(.*\)"/\1/p' < Cargo.toml)
+          actual_version=$(git describe --tags --abbrev=0)
+          if [[ "${toml_version}" != "${actual_version}" ]]; then
+            echo "Refusing to publish - toml version doesn't match tag version"
+            exit 1
+          else
+            echo "Git tag matches Cargo.toml, you may proceed :)"
+          fi
+
       - name: Build
         run: cargo build --release
 
@@ -25,15 +36,6 @@ jobs:
           mkdir release
           mv src/jtd-wrapper.sh release/jtd.sh
           mv target/release/jtd release/jtd
-
-      - name: Ensure Cargo.toml version matches git tag
-        run: |
-          toml_version=v$(sed -n 's/^version = "\(.*\)"/\1/p' < Cargo.toml)
-          actual_version=$(git describe --tags --abbrev=0)
-          if [[ "${toml_version}" != "${actual_version}" ]]; then
-            echo "Refusing to publish - toml version doesn't match tag version"
-            exit 1
-          fi
 
       - name: Publish to Crates.io
         run: |
