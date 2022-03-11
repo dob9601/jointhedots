@@ -1,8 +1,11 @@
+use std::io::{stdin, stdout, Write};
 use std::{error::Error, path::Path, sync::RwLock};
 
 use console::style;
 use dialoguer::{Input, Password};
-use git2::{Commit, Direction, Oid, PushOptions, RemoteCallbacks, Repository, Signature};
+use git2::build::CheckoutBuilder;
+use git2::Error as Git2Error;
+use git2::{Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature};
 use git2_credentials::{CredentialHandler, CredentialUI};
 
 use crate::utils::get_theme;
@@ -20,6 +23,24 @@ pub fn get_head(repo: &Repository) -> Result<Commit, Box<dyn Error>> {
 
 pub fn get_head_hash(repo: &Repository) -> Result<String, Box<dyn Error>> {
     Ok(get_head(repo)?.id().to_string())
+}
+
+pub fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Error>> {
+    let (object, reference) = repo
+        .revparse_ext(reference)
+        .map_err(|err| format!("Ref not found: {}", err))?;
+
+    if let Some(gref) = reference {
+        repo.set_head(gref.name().unwrap())
+    } else {
+        repo.set_head_detached(object.id())
+    }
+    .map_err(|err| format!("Failed to set HEAD: {}", err).into())
+}
+
+pub fn get_commit<'a>(repo: &'a Repository, commit_hash: &str) -> Result<Commit<'a>, Git2Error> {
+    let (object, _) = repo.revparse_ext(commit_hash)?;
+    object.peel_to_commit()
 }
 
 lazy_static! {
@@ -113,11 +134,17 @@ pub fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<
     Ok(repo)
 }
 
-pub fn add_and_commit(
-    repo: &Repository,
+pub fn generate_signature() -> Result<Signature<'static>, Git2Error> {
+    Signature::now("Jointhedots Sync", "jtd@danielobr.ie")
+}
+
+pub fn add_and_commit<'a>(
+    repo: &'a Repository,
     file_paths: Vec<&Path>,
     message: &str,
-) -> Result<Oid, Box<dyn Error>> {
+    parents: Option<Vec<Commit>>,
+    update_head: Option<&str>,
+) -> Result<Commit<'a>, Box<dyn Error>> {
     let mut index = repo.index()?;
 
     for path in file_paths {
@@ -127,18 +154,93 @@ pub fn add_and_commit(
     let oid = index.write_tree()?;
     let tree = repo.find_tree(oid)?;
 
-    let signature = Signature::now("Jointhedots Sync", "jtd@danielobr.ie")?;
+    let signature = generate_signature()?;
 
-    let parent = get_head(repo)?;
-    repo.commit(
-        Some("HEAD"),
+    let parents = match parents {
+        Some(parent_vec) => parent_vec,
+        None => vec![get_head(repo)?],
+    };
+    let oid = repo.commit(
+        update_head,
         &signature,
         &signature,
         message,
         &tree,
-        &[&parent],
-    )
-    .map_err(|err| format!("Failed to commit to repo: {}", err.to_string()).into())
+        &parents.iter().collect::<Vec<&Commit>>(),
+    )?;
+
+    repo.find_commit(oid)
+        .map_err(|err| format!("Failed to commit to repo: {}", err.to_string()).into())
+}
+
+// Adapted from https://github.com/rust-lang/git2-rs/blob/master/examples/pull.rs
+pub fn normal_merge(
+    repo: &Repository,
+    main_tip: &Commit,
+    feature_tip: &Commit,
+) -> Result<(), git2::Error> {
+    let local_tree = repo.find_commit(main_tip.id())?.tree()?;
+    let remote_tree = repo.find_commit(feature_tip.id())?.tree()?;
+    let ancestor = repo
+        .find_commit(repo.merge_base(main_tip.id(), feature_tip.id())?)?
+        .tree()?;
+    let mut idx = repo.merge_trees(&ancestor, &local_tree, &remote_tree, None)?;
+
+    if idx.has_conflicts() {
+        let repo_dir = repo.path().to_string_lossy().replace(".git/", "");
+        repo.checkout_index(
+            Some(&mut idx),
+            Some(
+                CheckoutBuilder::default()
+                    .allow_conflicts(true)
+                    .conflict_style_merge(true),
+            ),
+        )?;
+        // TODO: FIX MERGE CONFLICT HANDLING
+        println!(
+            "{}",
+            style(format!(
+                "⚠ Merge conficts detected. Resolve them manually with a text editor here: {}",
+                repo_dir
+            ))
+            .red()
+        );
+
+        loop {
+            print!("Press ENTER when conflicts are resolved");
+            let _ = stdout().flush();
+
+            let mut _newline = String::new();
+            stdin().read_line(&mut _newline).unwrap_or(0);
+
+            let index = repo.index()?;
+            if !index.has_conflicts() {
+                break;
+            } else {
+                println!("Conflicts not resolved")
+            }
+        }
+
+        return Ok(());
+    }
+    let result_tree = repo.find_tree(idx.write_tree_to(repo)?)?;
+    // now create the merge commit
+    let msg = format!("Merge: {} into {}", feature_tip.id(), main_tip.id());
+    let sig = generate_signature()?;
+    let local_commit = repo.find_commit(main_tip.id())?;
+    let remote_commit = repo.find_commit(feature_tip.id())?;
+    // Do our merge commit and set current branch head to that commit.
+    let _merge_commit = repo.commit(
+        Some("HEAD"),
+        &sig,
+        &sig,
+        &msg,
+        &result_tree,
+        &[&local_commit, &remote_commit],
+    )?;
+    // Set working tree to match head.
+    repo.checkout_head(None)?;
+    Ok(())
 }
 
 pub fn is_in_past(repo: &Repository, commit_hash: &str) -> Result<bool, Box<dyn Error>> {

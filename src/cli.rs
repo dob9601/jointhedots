@@ -80,8 +80,18 @@ pub struct SyncSubcommandArgs {
     #[clap(help = "The location of the repository in the form USERNAME/REPONAME")]
     pub repository: String,
 
-    #[clap(help = "The dotfiles to sync. If unspecified, sync all of them")]
+    #[clap(
+        help = "The dotfiles to sync. If unspecified, sync all of them",
+        conflicts_with = "all"
+    )]
     pub target_dotfiles: Vec<String>,
+
+    #[clap(
+        help = "Whether to install all dotfiles in the config",
+        long = "all",
+        short = 'a'
+    )]
+    pub all: bool,
 
     #[clap(
         arg_enum,
