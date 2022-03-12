@@ -1,4 +1,7 @@
-# Join The Dots
+# Jointhedots
+
+[![Release](https://github.com/dob9601/jointhedots/actions/workflows/release.yml/badge.svg)](https://github.com/dob9601/jointhedots/actions/workflows/release.yml)
+[![Test](https://github.com/dob9601/jointhedots/actions/workflows/test.yml/badge.svg)](https://github.com/dob9601/jointhedots/actions/workflows/test.yml)
 
 [![Release](https://github.com/dob9601/jointhedots/actions/workflows/release.yml/badge.svg)](https://github.com/dob9601/jointhedots/actions/workflows/release.yml)
 [![Test](https://github.com/dob9601/jointhedots/actions/workflows/test.yml/badge.svg)](https://github.com/dob9601/jointhedots/actions/workflows/test.yml)
