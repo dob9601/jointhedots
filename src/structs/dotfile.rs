@@ -1,3 +1,4 @@
+use crate::SINGLE_DOTFILE_COMMIT_FORMAT;
 use crate::git::operations::{add_and_commit, get_commit, get_head, normal_merge};
 use crate::utils::run_command_vec;
 use console::style;
@@ -166,6 +167,7 @@ impl Dotfile {
         dotfile_name: &str,
         metadata: Option<&DotfileMetadata>,
     ) -> Result<Commit<'a>, Box<dyn Error>> {
+        // FIXME: SYNC NEEDS TO MUTATE DOTFILE METADATA - IN ORDER TO UPDATE COMMIT HASH
         // Safe to unwrap here, repo.path() points to .git folder. Path will always
         // have a component after parent.
         let mut target_path_buf = repo.path().parent().unwrap().to_owned();
@@ -183,8 +185,8 @@ impl Dotfile {
             fs::copy(origin_path, target_path)?;
             let new_commit = add_and_commit(
                 repo,
-                vec![Path::new(&self.file)],
-                format!("🔁 Sync dotfiles for {}", dotfile_name).as_str(),
+                Some(vec![Path::new(&self.file)]),
+                &SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_name),
                 Some(vec![parent_commit]),
                 None,
             )?;
@@ -195,8 +197,8 @@ impl Dotfile {
             fs::copy(origin_path, target_path)?;
             let new_commit = add_and_commit(
                 repo,
-                vec![Path::new(&self.file)],
-                format!("Sync {}", dotfile_name).as_str(),
+                Some(vec![Path::new(&self.file)]),
+                &SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_name),
                 None,
                 Some("HEAD"),
             )?;

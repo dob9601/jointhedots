@@ -2,7 +2,10 @@ pub mod cli;
 pub mod structs;
 pub mod utils;
 
-pub mod git {
+pub(crate) const SINGLE_DOTFILE_COMMIT_FORMAT: &str = "🔁 Sync {} dotfile";
+pub(crate) const MULTIPLE_DOTFILES_COMMIT_FORMAT: &str = "🔁 Sync dotfiles for {}"; 
+
+pub(crate) mod git {
     pub mod operations;
     pub mod remote;
 }

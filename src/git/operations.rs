@@ -4,8 +4,8 @@ use std::{error::Error, path::Path, sync::RwLock};
 use console::style;
 use dialoguer::{Input, Password};
 use git2::build::CheckoutBuilder;
-use git2::Error as Git2Error;
 use git2::{Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature};
+use git2::{Error as Git2Error, IndexAddOption, MergeOptions};
 use git2_credentials::{CredentialHandler, CredentialUI};
 
 use crate::utils::get_theme;
@@ -140,15 +140,19 @@ pub fn generate_signature() -> Result<Signature<'static>, Git2Error> {
 
 pub fn add_and_commit<'a>(
     repo: &'a Repository,
-    file_paths: Vec<&Path>,
+    file_paths: Option<Vec<&Path>>,
     message: &str,
     parents: Option<Vec<Commit>>,
     update_head: Option<&str>,
 ) -> Result<Commit<'a>, Box<dyn Error>> {
     let mut index = repo.index()?;
 
-    for path in file_paths {
-        index.add_path(path)?;
+    if let Some(file_paths) = file_paths {
+        for path in file_paths {
+            index.add_path(path)?;
+        }
+    } else {
+        index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
     }
 
     let oid = index.write_tree()?;
@@ -184,7 +188,14 @@ pub fn normal_merge(
     let ancestor = repo
         .find_commit(repo.merge_base(main_tip.id(), feature_tip.id())?)?
         .tree()?;
-    let mut idx = repo.merge_trees(&ancestor, &local_tree, &remote_tree, None)?;
+
+    let mut options = MergeOptions::new();
+    options
+        .standard_style(true)
+        .minimal(true)
+        .fail_on_conflict(false);
+
+    let mut idx = repo.merge_trees(&ancestor, &local_tree, &remote_tree, Some(&options))?;
 
     if idx.has_conflicts() {
         let repo_dir = repo.path().to_string_lossy().replace(".git/", "");
@@ -196,33 +207,39 @@ pub fn normal_merge(
                     .conflict_style_merge(true),
             ),
         )?;
-        // TODO: FIX MERGE CONFLICT HANDLING
         println!(
             "{}",
             style(format!(
-                "⚠ Merge conficts detected. Resolve them manually with a text editor here: {}",
+                "⚠ Merge conficts detected. Resolve them manually with the following steps:\n\n  \
+                1. Open the temporary repository (located in {}),\n  \
+                2. Resolve any merge conflicts as you would with any other repository\n  \
+                3. Adding the changed files but NOT committing them\n  \
+                4. Returning to this terminal and pressing the \"Enter\" key\n",
                 repo_dir
             ))
             .red()
         );
 
         loop {
-            print!("Press ENTER when conflicts are resolved");
+            print!("{}", style("Press ENTER when conflicts are resolved").blue().italic());
             let _ = stdout().flush();
 
             let mut _newline = String::new();
             stdin().read_line(&mut _newline).unwrap_or(0);
 
-            let index = repo.index()?;
-            if !index.has_conflicts() {
+            idx = repo.index()?;
+            idx.read(false)?;
+
+            if !idx.has_conflicts() {
                 break;
             } else {
-                println!("Conflicts not resolved")
+                println!("{}", style("Conflicts not resolved").red())
             }
         }
-
-        return Ok(());
     }
+    // SYNC FAILS FIRST TIME, ALWAYS SUCCEEDS SECOND?
+    // LINES BELOW DONT SEEM TO BE NECESSARY
+    // SOME WEIRD REFS BEING PUSHED TO THE GIT REPO? UNSURE HOW TO CHECK
     let result_tree = repo.find_tree(idx.write_tree_to(repo)?)?;
     // now create the merge commit
     let msg = format!("Merge: {} into {}", feature_tip.id(), main_tip.id());
@@ -241,11 +258,6 @@ pub fn normal_merge(
     // Set working tree to match head.
     repo.checkout_head(None)?;
     Ok(())
-}
-
-pub fn is_in_past(repo: &Repository, commit_hash: &str) -> Result<bool, Box<dyn Error>> {
-    let head_commit = repo.head()?.target().ok_or("Could not get HEAD commit")?;
-    Ok(head_commit.to_string() == commit_hash)
 }
 
 pub fn push(repo: &Repository) -> Result<(), Box<dyn Error>> {

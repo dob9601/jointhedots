@@ -7,11 +7,14 @@ use std::{
     error::Error,
     fs::{self, File},
     path::PathBuf,
+    thread::sleep,
+    time::Duration,
 };
 
 use crate::{
-    git::operations::{get_head_hash, push},
+    git::operations::{add_and_commit, checkout_ref, get_head, get_head_hash, push},
     utils::get_theme,
+    MULTIPLE_DOTFILES_COMMIT_FORMAT,
 };
 
 use super::{AggregatedDotfileMetadata, Dotfile};
@@ -161,7 +164,7 @@ impl Manifest {
 
     pub fn sync(
         &self,
-        repo: Repository,
+        repo: &Repository,
         sync_all: bool,
         target_dotfiles: Vec<String>,
         commit_msg: Option<&str>,
@@ -178,7 +181,7 @@ impl Manifest {
             for (dotfile_name, dotfile) in dotfiles.iter() {
                 println!("Syncing {}", dotfile_name);
                 let commit = dotfile.sync(
-                    &repo,
+                    repo,
                     dotfile_name,
                     aggregated_metadata.data.get(dotfile_name.as_str()),
                 )?;
@@ -202,30 +205,54 @@ impl Manifest {
             {
                 for (dotfile_name, dotfile) in dotfiles.iter() {
                     println!("Syncing {} naively", dotfile_name);
-                    commits.push(dotfile.sync(&repo, dotfile_name, None)?);
+                    commits.push(dotfile.sync(repo, dotfile_name, None)?);
                 }
             } else {
                 return Err("Aborting due to lack of dotfile metadata".into());
             }
         }
 
-        // TODO: Squash commits
-        let _commit_msg = if let Some(message) = commit_msg {
-            message.to_string()
-        } else {
-            format!(
-                "Sync dotfiles for {}",
-                dotfiles
-                    .iter()
-                    .map(|(name, _)| name.as_str())
-                    .collect::<Vec<&str>>()
-                    .join(", ")
-            )
-        };
+        // FIXME: UPDATE METADATA REFS TO POINT TO NEW COMMIT
+        // Commits[0] isn't necessarily the oldest commit, iterate through and get minimum by
+        // time
+        let first_commit = commits.iter().min_by_key(|c| c.time());
+        if let Some(first_commit) = first_commit {
+            let target_commit = first_commit.parent(0)?;
+            checkout_ref(repo, "HEAD")?;
+            repo.reset(target_commit.as_object(), git2::ResetType::Soft, None)?;
+
+            let commit_msg = if let Some(message) = commit_msg {
+                message.to_string()
+            } else {
+                MULTIPLE_DOTFILES_COMMIT_FORMAT
+                    .replace(
+                        "{}",
+                        &dotfiles
+                            .iter()
+                            .map(|(name, _)| name.as_str())
+                            .collect::<Vec<&str>>()
+                            .join(", "),
+                    )
+                    .chars()  // Kinda cursed way to replace the last occurrence
+                    .rev()
+                    .collect::<String>()
+                    .replacen(",", "dna ", 1)
+                    .chars()
+                    .rev()
+                    .collect()
+            };
+            add_and_commit(
+                repo,
+                None,
+                &commit_msg,
+                Some(vec![get_head(repo)?]),
+                Some("HEAD"),
+            )?;
+        }
 
         // add_and_commit(&repo, relative_paths, &commit_msg, None)?;
 
-        push(&repo)?;
+        push(repo)?;
 
         println!("{}", style("✔ Successfully synced changes!").green());
 

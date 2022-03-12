@@ -21,7 +21,7 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
     let manifest = get_manifest(&manifest_path)?;
 
     manifest.sync(
-        repo,
+        &repo,
         args.all,
         args.target_dotfiles,
         args.commit_msg.as_deref(),
