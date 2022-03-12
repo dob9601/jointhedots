@@ -31,15 +31,15 @@ jobs:
       - name: Build
         run: cargo build --release
 
+      - name: Publish to Crates.io
+        run: |
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
       - name: Bundle release artifacts
         run: |
           mkdir release
           mv src/jtd-wrapper.sh release/jtd.sh
           mv target/release/jtd release/jtd
-
-      - name: Publish to Crates.io
-        run: |
-          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish to GitHub
         uses: softprops/action-gh-release@v1
