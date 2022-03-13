@@ -22,7 +22,6 @@ pub const SPINNER_FRAMES: &[&str] = &[
     "⠀⢘", "⠀⡘", "⠀⠨", "⠀⢐", "⠀⡐", "⠀⠠", "⠀⢀", "⠀⡀", "  ", "  ",
 ];
 pub const SPINNER_RATE: u64 = 48;
-pub const INSTALLED_DOTFILES_MANIFEST_PATH: &str = "~/.local/share/jointhedots/manifest.yaml";
 
 pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
     for (stage, command) in command_vec.iter().enumerate() {

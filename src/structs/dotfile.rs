@@ -1,8 +1,7 @@
-use crate::SINGLE_DOTFILE_COMMIT_FORMAT;
 use crate::git::operations::{add_and_commit, get_commit, get_head, normal_merge};
 use crate::utils::run_command_vec;
+use crate::{MANIFEST_PATH, SINGLE_DOTFILE_COMMIT_FORMAT};
 use console::style;
-use git2::Commit;
 use git2::Repository;
 use std::fs;
 use std::path::Path;
@@ -161,12 +160,12 @@ impl Dotfile {
         Ok(new_metadata)
     }
 
-    pub fn sync<'a>(
+    pub fn sync(
         &self,
-        repo: &'a Repository,
+        repo: &Repository,
         dotfile_name: &str,
         metadata: Option<&DotfileMetadata>,
-    ) -> Result<Commit<'a>, Box<dyn Error>> {
+    ) -> Result<DotfileMetadata, Box<dyn Error>> {
         // FIXME: SYNC NEEDS TO MUTATE DOTFILE METADATA - IN ORDER TO UPDATE COMMIT HASH
         // Safe to unwrap here, repo.path() points to .git folder. Path will always
         // have a component after parent.
@@ -178,8 +177,13 @@ impl Dotfile {
         let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
         let origin_path = Path::new(origin_path_str.as_ref());
 
-        let commit = if let Some(metadata) = metadata {
-            let parent_commit = get_commit(repo, &metadata.commit_hash)?;
+        if let Some(metadata) = metadata {
+            let mut new_metadata = metadata.clone();
+            println!("bfg");
+            let parent_commit = get_commit(repo, &metadata.commit_hash).map_err(
+                |_| format!("Could not find last sync'd commit for {}, manifest is corrupt. Try fresh-installing \
+                            this dotfile or manually correcting the commit hash in {}", dotfile_name, MANIFEST_PATH))?;
+            println!("asd");
             let merge_target = get_head(repo)?;
 
             fs::copy(origin_path, target_path)?;
@@ -191,8 +195,10 @@ impl Dotfile {
                 None,
             )?;
 
-            normal_merge(repo, &merge_target, &new_commit)?;
-            new_commit
+            let merge_commit = normal_merge(repo, &merge_target, &new_commit)?;
+
+            new_metadata.commit_hash = merge_commit.id().to_string();
+            Ok(new_metadata)
         } else {
             fs::copy(origin_path, target_path)?;
             let new_commit = add_and_commit(
@@ -202,9 +208,11 @@ impl Dotfile {
                 None,
                 Some("HEAD"),
             )?;
-            new_commit
-        };
-
-        Ok(commit)
+            Ok(DotfileMetadata::new(
+                &new_commit.id().to_string(),
+                self.hash_pre_install(),
+                self.hash_post_install(),
+            ))
+        }
     }
 }

@@ -1,15 +1,8 @@
 use console::style;
 use dialoguer::{Confirm, MultiSelect};
-use git2::Repository;
+use git2::{Oid, Repository};
 use serde::Deserialize;
-use std::{
-    collections::HashMap,
-    error::Error,
-    fs::{self, File},
-    path::PathBuf,
-    thread::sleep,
-    time::Duration,
-};
+use std::{collections::HashMap, error::Error, path::PathBuf};
 
 use crate::{
     git::operations::{add_and_commit, checkout_ref, get_head, get_head_hash, push},
@@ -100,12 +93,7 @@ impl Manifest {
                 .insert(dotfile_name.to_string(), metadata);
         }
 
-        let data_path = shellexpand::tilde("~/.local/share/jointhedots/");
-        fs::create_dir_all(data_path.as_ref())?;
-
-        let output_manifest_file = File::create(data_path.as_ref().to_owned() + "manifest.yaml")?;
-        serde_yaml::to_writer(output_manifest_file, &aggregated_metadata)?;
-
+        aggregated_metadata.save()?;
         Ok(())
     }
 
@@ -173,22 +161,9 @@ impl Manifest {
         let theme = get_theme();
 
         let dotfiles = self.get_target_dotfiles(target_dotfiles, sync_all);
-        let mut commits = vec![];
+        let mut commit_hashes = vec![];
 
-        // TODO: Sync should return commit objects as opposed to paths so that a vector can be
-        // constructed from them and all commits can be squashed in 1 go
-        if let Some(aggregated_metadata) = aggregated_metadata {
-            for (dotfile_name, dotfile) in dotfiles.iter() {
-                println!("Syncing {}", dotfile_name);
-                let commit = dotfile.sync(
-                    repo,
-                    dotfile_name,
-                    aggregated_metadata.data.get(dotfile_name.as_str()),
-                )?;
-
-                commits.push(commit);
-            }
-        } else {
+        if aggregated_metadata.is_none() {
             println!(
                 "{}",
                 style(
@@ -196,26 +171,43 @@ impl Manifest {
                 )
                 .yellow()
             );
-            if Confirm::with_theme(&theme)
+            if !Confirm::with_theme(&theme)
                 .with_prompt("Use naive sync?")
                 .default(false)
                 .wait_for_newline(true)
                 .interact()
                 .unwrap()
             {
-                for (dotfile_name, dotfile) in dotfiles.iter() {
-                    println!("Syncing {} naively", dotfile_name);
-                    commits.push(dotfile.sync(repo, dotfile_name, None)?);
-                }
-            } else {
                 return Err("Aborting due to lack of dotfile metadata".into());
             }
         }
 
-        // FIXME: UPDATE METADATA REFS TO POINT TO NEW COMMIT
+        let mut aggregated_metadata = aggregated_metadata.unwrap_or_default();
+
+        for (dotfile_name, dotfile) in dotfiles.iter() {
+            println!("Syncing {}", dotfile_name);
+            let new_metadata = dotfile.sync(
+                repo,
+                dotfile_name,
+                aggregated_metadata.data.get(dotfile_name.as_str()),
+            )?;
+            println!("asd");
+
+            commit_hashes.push(new_metadata.commit_hash.to_owned());
+            aggregated_metadata
+                .data
+                .insert((*dotfile_name).to_string(), new_metadata);
+        }
+
         // Commits[0] isn't necessarily the oldest commit, iterate through and get minimum by
         // time
-        let first_commit = commits.iter().min_by_key(|c| c.time());
+        let first_commit = commit_hashes
+            .iter()
+            .filter_map(|hash| {
+                let maybe_commit = repo.find_commit(Oid::from_str(hash).ok()?);
+                maybe_commit.ok()
+            })
+            .min_by_key(|commit| commit.time());
         if let Some(first_commit) = first_commit {
             let target_commit = first_commit.parent(0)?;
             checkout_ref(repo, "HEAD")?;
@@ -233,7 +225,7 @@ impl Manifest {
                             .collect::<Vec<&str>>()
                             .join(", "),
                     )
-                    .chars()  // Kinda cursed way to replace the last occurrence
+                    .chars() // Kinda cursed way to replace the last occurrence
                     .rev()
                     .collect::<String>()
                     .replacen(",", "dna ", 1)
@@ -241,13 +233,18 @@ impl Manifest {
                     .rev()
                     .collect()
             };
-            add_and_commit(
+            let commit_hash = add_and_commit(
                 repo,
                 None,
                 &commit_msg,
                 Some(vec![get_head(repo)?]),
                 Some("HEAD"),
-            )?;
+            )?
+            .id()
+            .to_string();
+            for (_dotfile_name, metadata) in aggregated_metadata.data.iter_mut() {
+                metadata.commit_hash = commit_hash.to_owned();
+            }
         }
 
         // add_and_commit(&repo, relative_paths, &commit_msg, None)?;
@@ -256,6 +253,7 @@ impl Manifest {
 
         println!("{}", style("✔ Successfully synced changes!").green());
 
+        aggregated_metadata.save()?;
         Ok(())
     }
 }

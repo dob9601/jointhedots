@@ -3,7 +3,9 @@ pub mod structs;
 pub mod utils;
 
 pub(crate) const SINGLE_DOTFILE_COMMIT_FORMAT: &str = "🔁 Sync {} dotfile";
-pub(crate) const MULTIPLE_DOTFILES_COMMIT_FORMAT: &str = "🔁 Sync dotfiles for {}"; 
+pub(crate) const MULTIPLE_DOTFILES_COMMIT_FORMAT: &str = "🔁 Sync dotfiles for {}";
+
+pub(crate) const MANIFEST_PATH: &str = "~/.local/share/jointhedots/manifest.yaml";
 
 pub(crate) mod git {
     pub mod operations;

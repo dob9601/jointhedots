@@ -178,11 +178,11 @@ pub fn add_and_commit<'a>(
 }
 
 // Adapted from https://github.com/rust-lang/git2-rs/blob/master/examples/pull.rs
-pub fn normal_merge(
-    repo: &Repository,
+pub fn normal_merge<'a>(
+    repo: &'a Repository,
     main_tip: &Commit,
     feature_tip: &Commit,
-) -> Result<(), git2::Error> {
+) -> Result<Commit<'a>, git2::Error> {
     let local_tree = repo.find_commit(main_tip.id())?.tree()?;
     let remote_tree = repo.find_commit(feature_tip.id())?.tree()?;
     let ancestor = repo
@@ -221,7 +221,12 @@ pub fn normal_merge(
         );
 
         loop {
-            print!("{}", style("Press ENTER when conflicts are resolved").blue().italic());
+            print!(
+                "{}",
+                style("Press ENTER when conflicts are resolved")
+                    .blue()
+                    .italic()
+            );
             let _ = stdout().flush();
 
             let mut _newline = String::new();
@@ -247,7 +252,7 @@ pub fn normal_merge(
     let local_commit = repo.find_commit(main_tip.id())?;
     let remote_commit = repo.find_commit(feature_tip.id())?;
     // Do our merge commit and set current branch head to that commit.
-    let _merge_commit = repo.commit(
+    let merge_commit = repo.commit(
         Some("HEAD"),
         &sig,
         &sig,
@@ -257,7 +262,7 @@ pub fn normal_merge(
     )?;
     // Set working tree to match head.
     repo.checkout_head(None)?;
-    Ok(())
+    Ok(repo.find_commit(merge_commit)?)
 }
 
 pub fn push(repo: &Repository) -> Result<(), Box<dyn Error>> {

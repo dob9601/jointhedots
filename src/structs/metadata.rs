@@ -1,9 +1,10 @@
 use std::collections::HashMap;
+use std::fs;
 use std::{error::Error, fs::File};
 
 use serde::{Deserialize, Serialize};
 
-use crate::utils::INSTALLED_DOTFILES_MANIFEST_PATH;
+use crate::MANIFEST_PATH;
 
 /// Struct representing a `manifest.yaml` file, typically found in ~/.local/share/jointhedots.
 /// Represents an aggregation of the metadata of all of the dotfiles in a Manifest via a mapping of
@@ -29,13 +30,17 @@ impl AggregatedDotfileMetadata {
     /// let manifest = AggregatedDotfileMetadata::get().unwrap();
     /// ```
     pub fn get() -> Result<Option<AggregatedDotfileMetadata>, Box<dyn Error>> {
-        let path = shellexpand::tilde(INSTALLED_DOTFILES_MANIFEST_PATH);
+        let path = shellexpand::tilde(MANIFEST_PATH);
         let reader = File::open(path.as_ref()).ok();
 
         if let Some(file) = reader {
-            let config: AggregatedDotfileMetadata = serde_yaml::from_reader(file).map_err(|_| {
-            "Could not parse manifest. Check ~/.local/share/jointhedots/manifest.yaml for issues"
-        })?;
+            let config: AggregatedDotfileMetadata =
+                serde_yaml::from_reader(file).map_err(|_| {
+                    format!(
+                        "Could not parse manifest. Check {} for issues",
+                        MANIFEST_PATH
+                    )
+                })?;
             Ok(Some(config))
         } else {
             Ok(None)
@@ -53,6 +58,14 @@ impl AggregatedDotfileMetadata {
     /// ```
     pub fn get_or_create() -> Result<AggregatedDotfileMetadata, Box<dyn Error>> {
         Ok(AggregatedDotfileMetadata::get()?.unwrap_or_else(AggregatedDotfileMetadata::new))
+    }
+
+    pub fn save(&self) -> Result<(), Box<dyn Error>> {
+        let data_path = shellexpand::tilde(MANIFEST_PATH);
+        fs::create_dir_all(data_path.as_ref())?;
+
+        let output_manifest_file = File::create(data_path.to_string())?;
+        Ok(serde_yaml::to_writer(output_manifest_file, &self)?)
     }
 }
 
