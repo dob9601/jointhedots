@@ -234,6 +234,7 @@ impl Manifest {
                     .rev()
                     .collect()
             };
+            // FIXME: Don't commit if commit_hashes is empty
             let commit_hash = add_and_commit(
                 repo,
                 None,
