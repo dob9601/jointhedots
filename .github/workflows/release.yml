@@ -33,7 +33,7 @@ jobs:
 
       - name: Publish to Crates.io
         run: |
-          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --allow-dirty
 
       - name: Bundle release artifacts
         run: |
