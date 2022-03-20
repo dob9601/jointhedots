@@ -5,7 +5,7 @@ use serde::Deserialize;
 use std::{collections::HashMap, error::Error, path::PathBuf};
 
 use crate::{
-    git::operations::{add_and_commit, checkout_ref, get_head, get_head_hash, push},
+    git::operations::{add_and_commit, checkout_ref, get_head_hash, push},
     utils::get_theme,
     MULTIPLE_DOTFILES_COMMIT_FORMAT,
 };
@@ -150,6 +150,8 @@ impl Manifest {
             })
     }
 
+    // FIXME: Currently seems to be setting all dotfiles to same hash - even if they haven't been
+    // synced.
     pub fn sync(
         &self,
         repo: &Repository,
@@ -191,7 +193,6 @@ impl Manifest {
                 dotfile_name,
                 aggregated_metadata.data.get(dotfile_name.as_str()),
             )?;
-            println!("asd");
 
             commit_hashes.push(new_metadata.commit_hash.to_owned());
             aggregated_metadata
@@ -237,7 +238,7 @@ impl Manifest {
                 repo,
                 None,
                 &commit_msg,
-                Some(vec![get_head(repo)?]),
+                None,
                 Some("HEAD"),
             )?
             .id()
@@ -246,8 +247,6 @@ impl Manifest {
                 metadata.commit_hash = commit_hash.to_owned();
             }
         }
-
-        // add_and_commit(&repo, relative_paths, &commit_msg, None)?;
 
         push(repo)?;
 

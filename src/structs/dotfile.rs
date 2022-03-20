@@ -1,4 +1,4 @@
-use crate::git::operations::{add_and_commit, get_commit, get_head, normal_merge};
+use crate::git::operations::{add_and_commit, get_commit, get_head, has_changes, normal_merge};
 use crate::utils::run_command_vec;
 use crate::{MANIFEST_PATH, SINGLE_DOTFILE_COMMIT_FORMAT};
 use console::style;
@@ -179,25 +179,25 @@ impl Dotfile {
 
         if let Some(metadata) = metadata {
             let mut new_metadata = metadata.clone();
-            println!("bfg");
             let parent_commit = get_commit(repo, &metadata.commit_hash).map_err(
                 |_| format!("Could not find last sync'd commit for {}, manifest is corrupt. Try fresh-installing \
                             this dotfile or manually correcting the commit hash in {}", dotfile_name, MANIFEST_PATH))?;
-            println!("asd");
             let merge_target = get_head(repo)?;
 
             fs::copy(origin_path, target_path)?;
-            let new_commit = add_and_commit(
-                repo,
-                Some(vec![Path::new(&self.file)]),
-                &SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_name),
-                Some(vec![parent_commit]),
-                None,
-            )?;
+            if has_changes(repo)? {
+                let new_commit = add_and_commit(
+                    repo,
+                    Some(vec![Path::new(&self.file)]),
+                    &SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_name),
+                    Some(vec![parent_commit]),
+                    None,
+                )?;
 
-            let merge_commit = normal_merge(repo, &merge_target, &new_commit)?;
+                let merge_commit = normal_merge(repo, &merge_target, &new_commit)?;
 
-            new_metadata.commit_hash = merge_commit.id().to_string();
+                new_metadata.commit_hash = merge_commit.id().to_string();
+            }
             Ok(new_metadata)
         } else {
             fs::copy(origin_path, target_path)?;

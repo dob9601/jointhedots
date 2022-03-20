@@ -4,7 +4,7 @@ use std::{error::Error, path::Path, sync::RwLock};
 use console::style;
 use dialoguer::{Input, Password};
 use git2::build::CheckoutBuilder;
-use git2::{Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature};
+use git2::{Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature, Status};
 use git2::{Error as Git2Error, IndexAddOption, MergeOptions};
 use git2_credentials::{CredentialHandler, CredentialUI};
 
@@ -138,6 +138,24 @@ pub fn generate_signature() -> Result<Signature<'static>, Git2Error> {
     Signature::now("Jointhedots Sync", "jtd@danielobr.ie")
 }
 
+pub fn has_changes(repo: &Repository) -> Result<bool, Box<dyn Error>> {
+    Ok(repo.statuses(None)?.iter().map(|e| e.status()).collect::<Vec<Status>>().len() > 0)
+}
+
+/// Add and commit the specified files to the repository index.
+///
+/// # Arguments
+///
+/// * `repo` - The repository object
+/// * `file_paths` - Optionally the paths of the files to commit. If `None`, all changes are
+/// committed.
+/// * `message` - The commit message to use
+/// * `parents` - Optionally the parent commits for the new commit. If None, `HEAD` is used
+/// * `update_head` - Optionally whether to update the commit the `HEAD` reference points at.
+///
+/// # Returns
+///
+/// The new commit in the repository
 pub fn add_and_commit<'a>(
     repo: &'a Repository,
     file_paths: Option<Vec<&Path>>,
