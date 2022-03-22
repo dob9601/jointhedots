@@ -166,7 +166,6 @@ impl Dotfile {
         dotfile_name: &str,
         metadata: Option<&DotfileMetadata>,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        // FIXME: SYNC NEEDS TO MUTATE DOTFILE METADATA - IN ORDER TO UPDATE COMMIT HASH
         // Safe to unwrap here, repo.path() points to .git folder. Path will always
         // have a component after parent.
         let mut target_path_buf = repo.path().parent().unwrap().to_owned();
