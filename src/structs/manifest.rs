@@ -235,15 +235,9 @@ impl Manifest {
                     .collect()
             };
             // FIXME: Don't commit if commit_hashes is empty
-            let commit_hash = add_and_commit(
-                repo,
-                None,
-                &commit_msg,
-                None,
-                Some("HEAD"),
-            )?
-            .id()
-            .to_string();
+            let commit_hash = add_and_commit(repo, None, &commit_msg, None, Some("HEAD"))?
+                .id()
+                .to_string();
             for (_dotfile_name, metadata) in aggregated_metadata.data.iter_mut() {
                 metadata.commit_hash = commit_hash.to_owned();
             }

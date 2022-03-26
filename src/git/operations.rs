@@ -139,7 +139,13 @@ pub fn generate_signature() -> Result<Signature<'static>, Git2Error> {
 }
 
 pub fn has_changes(repo: &Repository) -> Result<bool, Box<dyn Error>> {
-    Ok(repo.statuses(None)?.iter().map(|e| e.status()).collect::<Vec<Status>>().len() > 0)
+    Ok(repo
+        .statuses(None)?
+        .iter()
+        .map(|e| e.status())
+        .collect::<Vec<Status>>()
+        .len()
+        > 0)
 }
 
 /// Add and commit the specified files to the repository index.

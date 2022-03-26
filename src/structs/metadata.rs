@@ -64,7 +64,11 @@ impl AggregatedDotfileMetadata {
 
     pub fn save(&self) -> Result<(), Box<dyn Error>> {
         let data_path = shellexpand::tilde(MANIFEST_PATH);
-        fs::create_dir_all(Path::new(data_path.as_ref()).parent().ok_or("Could not access manifest directory")?)?;
+        fs::create_dir_all(
+            Path::new(data_path.as_ref())
+                .parent()
+                .ok_or("Could not access manifest directory")?,
+        )?;
 
         let mut output_manifest_file = File::create(data_path.to_string())?;
         output_manifest_file.write_all("# jointhedots installation manifest. Automatically generated, DO NOT EDIT (unless you know what you're doing)\n".as_bytes())?;
