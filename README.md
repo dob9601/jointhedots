@@ -22,6 +22,7 @@ SUBCOMMANDS:
 ```
 
 ## About
+![localhost_3000_ (1)](https://user-images.githubusercontent.com/24723950/160243228-5dce7b66-1c1b-4a7b-96a2-a2bf10feb0d1.png)
 
 jointhedots works by reading a "jtd.yaml" manifest file located within your dotfile repository. The manifest contains a mapping of file to installed location (amongst other things), allowing for JTD to automatically install configurations. `pre_install` and `post_install` commands can also be specified, allowing for additional control over installation.
 
