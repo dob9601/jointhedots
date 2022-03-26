@@ -25,7 +25,7 @@ SUBCOMMANDS:
 
 jointhedots works by reading a "jtd.yaml" manifest file located within your dotfile repository. The manifest contains a mapping of file to installed location (amongst other things), allowing for JTD to automatically install configurations. `pre_install` and `post_install` commands can also be specified, allowing for additional control over installation.
 
-**WARNING: Be very careful about installing dotfiles via untrusted manifests. The pre_install and post_install blocks allow for (potentially malicious) code execution**. JTD will prompt you to confirm you trust a manifest if it contains install steps.
+*WARNING:* Be very careful about installing dotfiles via untrusted manifests. The pre_install and post_install blocks allow for (potentially malicious) code execution**. JTD will prompt you to confirm you trust a manifest if it contains install steps.
 
 ## Roadmap
 | Feature                                                                              | Implemented |       Notes        |
