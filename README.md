@@ -4,7 +4,7 @@
 [![Test](https://github.com/dob9601/jointhedots/actions/workflows/test.yml/badge.svg)](https://github.com/dob9601/jointhedots/actions/workflows/test.yml)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://makeapullrequest.com)
 
-![Demo](https://user-images.githubusercontent.com/24723950/160283612-14b6ccc5-7f0b-4603-85ad-c59722768512.gif)
+![Demo](https://user-images.githubusercontent.com/24723950/160283737-6cced48d-3ea1-4b49-8e17-bbb6fd10c9e7.gif)
 ```
 jointhedots 
 A simple git-based dotfile manager written entirely in Rust!
