@@ -110,8 +110,8 @@ A JSON Schema for the manifest is available [here](https://github.com/dob9601/jo
 
 *Q: The different platforms I use require differing installation steps, can I target multiple platforms?*
 
-A: Yes! You can write a different manifest for each platform and specify the manifest to use with the `--manifest` flag
+**A: Yes! You can write a different manifest for each platform and specify the manifest to use with the `--manifest` flag**
 
 *Q: Can jointhedots handle secrets*
 
-A: Yes, you could store your secrets as encrypted files in the repository along with a `post_install` step to decrypt them, I'd advise against doing this in a public dotfile repository though.
+**A: Yes, you could store your secrets as encrypted files in the repository along with a `post_install` step to decrypt them, I'd advise against doing this in a public dotfile repository though.**
