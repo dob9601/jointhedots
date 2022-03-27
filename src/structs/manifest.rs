@@ -237,7 +237,12 @@ impl Manifest {
                 .id()
                 .to_string();
             for (dotfile_name, metadata) in aggregated_metadata.data.iter_mut() {
-                if dotfiles.iter().map(|(name, _dotfile)| name).any(|s| s == &dotfile_name) || sync_all {
+                if dotfiles
+                    .iter()
+                    .map(|(name, _dotfile)| name)
+                    .any(|s| s == &dotfile_name)
+                    || sync_all
+                {
                     metadata.commit_hash = commit_hash.to_owned();
                 }
             }
