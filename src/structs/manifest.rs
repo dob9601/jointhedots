@@ -150,8 +150,6 @@ impl Manifest {
             })
     }
 
-    // FIXME: Currently seems to be setting all dotfiles to same hash - even if they haven't been
-    // synced.
     pub fn sync(
         &self,
         repo: &Repository,
@@ -238,8 +236,10 @@ impl Manifest {
             let commit_hash = add_and_commit(repo, None, &commit_msg, None, Some("HEAD"))?
                 .id()
                 .to_string();
-            for (_dotfile_name, metadata) in aggregated_metadata.data.iter_mut() {
-                metadata.commit_hash = commit_hash.to_owned();
+            for (dotfile_name, metadata) in aggregated_metadata.data.iter_mut() {
+                if dotfiles.iter().map(|(name, _dotfile)| name).any(|s| s == &dotfile_name) || sync_all {
+                    metadata.commit_hash = commit_hash.to_owned();
+                }
             }
         }
 
