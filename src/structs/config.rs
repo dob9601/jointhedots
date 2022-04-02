@@ -3,15 +3,28 @@ use serde::Deserialize;
 const SINGLE_DOTFILE_COMMIT_FORMAT: &str = "Sync {} dotfile";
 const MULTIPLE_DOTFILES_COMMIT_FORMAT: &str = "Sync dotfiles for {}";
 
+fn default_commit_prefix() -> String {
+    "🔁 ".to_string()
+}
+
+fn default_squash_commits() -> bool {
+    true
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
+    #[serde(default = "default_commit_prefix")]
     pub commit_prefix: String,
+    
+    #[serde(default = "default_squash_commits")]
+    pub squash_commits: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
-            commit_prefix: "🔁 ".to_string(),
+            commit_prefix: default_commit_prefix(),
+            squash_commits: default_squash_commits(),
         }
     }
 }

@@ -76,9 +76,10 @@ curl -sL jtd.danielobr.ie | sh
 ## Configuration
 
 JTDs default behaviour can be overridden using the `.config` key. Currently supported configuration:
-| Configuration key | Usage                                          | Default |
-| ----------------- | ---------------------------------------------- |         |
-| `commit_prefix`   | String to prefix commits with                  |  `🔁  ` |
+| Configuration key | Usage                                                    | Default |
+| ----------------- | -------------------------------------------------------- |         |
+| `commit_prefix`   | String to prefix commits with                            |  `🔁  ` |
+| `squash_commits`  | Whether to squash commits when syncing multiple dotfiles |  `🔁  ` |
 
 
 ## Example Manifest
