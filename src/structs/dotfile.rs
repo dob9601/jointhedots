@@ -1,6 +1,6 @@
 use crate::git::operations::{add_and_commit, get_commit, get_head, has_changes, normal_merge};
 use crate::utils::run_command_vec;
-use crate::{MANIFEST_PATH, SINGLE_DOTFILE_COMMIT_FORMAT};
+use crate::MANIFEST_PATH;
 use console::style;
 use git2::Repository;
 use std::fs;
@@ -11,7 +11,7 @@ use std::error::Error;
 
 use crate::utils::hash_command_vec;
 
-use super::DotfileMetadata;
+use super::{Config, DotfileMetadata};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Dotfile {
@@ -164,6 +164,7 @@ impl Dotfile {
         &self,
         repo: &Repository,
         dotfile_name: &str,
+        config: &Config,
         metadata: Option<&DotfileMetadata>,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
         // Safe to unwrap here, repo.path() points to .git folder. Path will always
@@ -188,7 +189,7 @@ impl Dotfile {
                 let new_commit = add_and_commit(
                     repo,
                     Some(vec![Path::new(&self.file)]),
-                    &SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_name),
+                    &config.generate_commit_message(vec![dotfile_name]),
                     Some(vec![parent_commit]),
                     None,
                 )?;
@@ -203,7 +204,7 @@ impl Dotfile {
             let new_commit = add_and_commit(
                 repo,
                 Some(vec![Path::new(&self.file)]),
-                &SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_name),
+                &config.generate_commit_message(vec![dotfile_name]),
                 None,
                 Some("HEAD"),
             )?;
