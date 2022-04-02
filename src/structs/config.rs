@@ -54,3 +54,26 @@ impl Config {
         commit_message
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_generate_commit_message_single_dotfile() {
+        let config = Config::default();
+
+        let commit_message = config.generate_commit_message(vec!["neovim"]);
+
+        assert_eq!("🔁 Sync neovim dotfile", commit_message.as_str());
+    }
+
+    #[test]
+    fn test_generate_commit_message_multiple_dotfiles() {
+        let config = Config::default();
+
+        let commit_message = config.generate_commit_message(vec!["neovim", "kitty"]);
+
+        assert_eq!("🔁 Sync dotfiles for neovim and kitty", commit_message.as_str());
+    }
+}

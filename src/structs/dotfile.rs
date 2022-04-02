@@ -4,7 +4,7 @@ use crate::MANIFEST_PATH;
 use console::style;
 use git2::Repository;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use std::error::Error;
@@ -16,7 +16,7 @@ use super::{Config, DotfileMetadata};
 #[derive(Deserialize, Debug, Clone)]
 pub struct Dotfile {
     pub file: String,
-    pub target: Box<Path>,
+    pub target: PathBuf,
     pub pre_install: Option<Vec<String>>,
     pub post_install: Option<Vec<String>>,
 }
@@ -215,4 +215,68 @@ impl Dotfile {
             ))
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    #[test]
+    fn test_hash_empty_pre_install() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        assert_eq!("", dotfile.hash_pre_install());
+    }
+
+    #[test]
+    fn test_hash_pre_install() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+            post_install: None,
+        };
+
+        assert_eq!("1ef98a8d0946d6512ca5da8242eb7a52a506de54", dotfile.hash_pre_install());
+    }
+
+    #[test]
+    fn test_hash_empty_post_install() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        assert_eq!("", dotfile.hash_post_install());
+    }
+
+    #[test]
+    fn test_hash_post_install() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+        };
+
+        assert_eq!("1ef98a8d0946d6512ca5da8242eb7a52a506de54", dotfile.hash_post_install());
+    }
+
 }
