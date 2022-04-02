@@ -18,10 +18,10 @@ impl Default for Config {
 
 impl Config {
     pub fn generate_commit_message(&self, dotfile_names: Vec<&str>) -> String {
-        let mut commit_message = String::new();
+        let mut commit_message = self.commit_prefix.to_string();
 
         if dotfile_names.len() == 1 {
-            commit_message.push_str(&SINGLE_DOTFILE_COMMIT_FORMAT.replace("", &dotfile_names[0]));
+            commit_message.push_str(&SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", &dotfile_names[0]));
         } else {
             commit_message.push_str(
                 &MULTIPLE_DOTFILES_COMMIT_FORMAT
