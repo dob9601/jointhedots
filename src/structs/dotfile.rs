@@ -279,4 +279,85 @@ mod tests {
         assert_eq!("1ef98a8d0946d6512ca5da8242eb7a52a506de54", dotfile.hash_post_install());
     }
 
+    #[test]
+    fn test_has_unexecuted_run_stages_no_metadata() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        assert_eq!(false, dotfile.has_unexecuted_run_stages(&None));
+    }
+
+    #[test]
+    fn test_has_unexecuted_run_stages_with_metadata_no_install_steps() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: "".to_string(),
+            pre_install_hash: "".to_string(),
+            post_install_hash: "".to_string(),
+        };
+
+        assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+    }
+
+    #[test]
+    fn test_has_unexecuted_run_stages_with_metadata_with_install_steps_true() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+            post_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: "".to_string(),
+            pre_install_hash: "".to_string(),
+            post_install_hash: "".to_string(),
+        };
+
+        assert_eq!(true, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+    }
+
+    #[test]
+    fn test_has_unexecuted_run_stages_with_metadata_with_install_steps_false() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+            post_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: "".to_string(),
+            pre_install_hash: "1ef98a8d0946d6512ca5da8242eb7a52a506de54".to_string(),
+            post_install_hash: "1ef98a8d0946d6512ca5da8242eb7a52a506de54".to_string(),
+        };
+
+        assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+    }
 }
