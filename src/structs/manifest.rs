@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    git::operations::{add_and_commit, checkout_ref, get_head_hash, push},
+    git::operations::{add_and_commit, get_head_hash, push},
     utils::get_theme,
 };
 
@@ -227,7 +227,6 @@ impl Manifest {
                 .min_by_key(|commit| commit.time());
             if let Some(first_commit) = first_commit {
                 let target_commit = first_commit.parent(0)?;
-                checkout_ref(repo, "HEAD")?;
                 repo.reset(target_commit.as_object(), git2::ResetType::Soft, None)?;
 
                 let commit_msg = if let Some(message) = commit_msg {
