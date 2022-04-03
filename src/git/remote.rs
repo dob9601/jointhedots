@@ -125,6 +125,13 @@ mod tests {
     }
 
     #[test]
+    fn test_repo_host_from_str_invalid() {
+        let hostname = "foobar";
+        <RepoHostName as std::str::FromStr>::from_str(hostname)
+            .expect_err("Invalid variant produced success");
+    }
+
+    #[test]
     fn test_connection_method_from_str_ssh() {
         let method = "ssh";
         assert_eq!(
@@ -142,5 +149,12 @@ mod tests {
                 .expect("Could not convert from str"),
             ConnectionMethod::HTTPS
         )
+    }
+
+    #[test]
+    fn test_connection_method_from_str_invalid() {
+        let method = "ftp";
+        <ConnectionMethod as std::str::FromStr>::from_str(method)
+            .expect_err("Invalid variant produced success");
     }
 }
