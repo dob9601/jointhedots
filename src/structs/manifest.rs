@@ -7,15 +7,17 @@ use std::{collections::HashMap, error::Error, path::PathBuf};
 use crate::{
     git::operations::{add_and_commit, checkout_ref, get_head_hash, push},
     utils::get_theme,
-    MULTIPLE_DOTFILES_COMMIT_FORMAT,
 };
 
-use super::{AggregatedDotfileMetadata, Dotfile};
+use super::{AggregatedDotfileMetadata, Config, Dotfile};
 
 /// Represents an aggregation of [Dotfile]s, as found in the `jtd.yaml` file. This is done via a
 /// mapping of `dotfile_name` to [Dotfile]
 #[derive(Deserialize, Debug, Clone)]
 pub struct Manifest {
+    #[serde(default, rename = ".config")]
+    config: Config,
+
     #[serde(flatten)]
     data: HashMap<String, Dotfile>,
 }
@@ -189,6 +191,7 @@ impl Manifest {
             let new_metadata = dotfile.sync(
                 repo,
                 dotfile_name,
+                &self.config,
                 aggregated_metadata.data.get(dotfile_name.as_str()),
             )?;
 
@@ -198,52 +201,44 @@ impl Manifest {
                 .insert((*dotfile_name).to_string(), new_metadata);
         }
 
-        // Commits[0] isn't necessarily the oldest commit, iterate through and get minimum by
-        // time
-        let first_commit = commit_hashes
-            .iter()
-            .filter_map(|hash| {
-                let maybe_commit = repo.find_commit(Oid::from_str(hash).ok()?);
-                maybe_commit.ok()
-            })
-            .min_by_key(|commit| commit.time());
-        if let Some(first_commit) = first_commit {
-            let target_commit = first_commit.parent(0)?;
-            checkout_ref(repo, "HEAD")?;
-            repo.reset(target_commit.as_object(), git2::ResetType::Soft, None)?;
+        if self.config.squash_commits {
+            // Commits[0] isn't necessarily the oldest commit, iterate through and get minimum by
+            // time
+            let first_commit = commit_hashes
+                .iter()
+                .filter_map(|hash| {
+                    let maybe_commit = repo.find_commit(Oid::from_str(hash).ok()?);
+                    maybe_commit.ok()
+                })
+                .min_by_key(|commit| commit.time());
+            if let Some(first_commit) = first_commit {
+                let target_commit = first_commit.parent(0)?;
+                checkout_ref(repo, "HEAD")?;
+                repo.reset(target_commit.as_object(), git2::ResetType::Soft, None)?;
 
-            let commit_msg = if let Some(message) = commit_msg {
-                message.to_string()
-            } else {
-                MULTIPLE_DOTFILES_COMMIT_FORMAT
-                    .replace(
-                        "{}",
-                        &dotfiles
+                let commit_msg = if let Some(message) = commit_msg {
+                    message.to_string()
+                } else {
+                    self.config.generate_commit_message(
+                        dotfiles
                             .iter()
                             .map(|(name, _)| name.as_str())
-                            .collect::<Vec<&str>>()
-                            .join(", "),
+                            .collect::<Vec<&str>>(),
                     )
-                    .chars() // Kinda cursed way to replace the last occurrence
-                    .rev()
-                    .collect::<String>()
-                    .replacen(",", "dna ", 1)
-                    .chars()
-                    .rev()
-                    .collect()
-            };
-            // FIXME: Don't commit if commit_hashes is empty
-            let commit_hash = add_and_commit(repo, None, &commit_msg, None, Some("HEAD"))?
-                .id()
-                .to_string();
-            for (dotfile_name, metadata) in aggregated_metadata.data.iter_mut() {
-                if dotfiles
-                    .iter()
-                    .map(|(name, _dotfile)| name)
-                    .any(|s| s == &dotfile_name)
-                    || sync_all
-                {
-                    metadata.commit_hash = commit_hash.to_owned();
+                };
+                // FIXME: Don't commit if commit_hashes is empty
+                let commit_hash = add_and_commit(repo, None, &commit_msg, None, Some("HEAD"))?
+                    .id()
+                    .to_string();
+                for (dotfile_name, metadata) in aggregated_metadata.data.iter_mut() {
+                    if dotfiles
+                        .iter()
+                        .map(|(name, _dotfile)| name)
+                        .any(|s| s == &dotfile_name)
+                        || sync_all
+                    {
+                        metadata.commit_hash = commit_hash.to_owned();
+                    }
                 }
             }
         }

@@ -26,6 +26,7 @@ SUBCOMMANDS:
 - [About](#about)
 - [Roadmap](#roadmap)
 - [Installation](#installation)
+- [Configuration](#configuration)
 - [Example Manifest](#example-manifest)
 - [FAQ](#faq)
 
@@ -71,6 +72,15 @@ Use the following 1 liner to 1-off run JTD to install your dotfiles
 ```sh
 curl -sL jtd.danielobr.ie | sh
 ```
+
+## Configuration
+
+JTDs default behaviour can be overridden using the `.config` key. Currently supported configuration:
+| Configuration key | Usage                                                    | Default               |
+| :---              | :---                                                     |  :---:                |
+| `commit_prefix`   | String to prefix commits with                            | <code>🔁&nbsp;</code> |
+| `squash_commits`  | Whether to squash commits when syncing multiple dotfiles | `false`               |
+
 
 ## Example Manifest
 

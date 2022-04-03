@@ -1,22 +1,22 @@
 use crate::git::operations::{add_and_commit, get_commit, get_head, has_changes, normal_merge};
 use crate::utils::run_command_vec;
-use crate::{MANIFEST_PATH, SINGLE_DOTFILE_COMMIT_FORMAT};
+use crate::MANIFEST_PATH;
 use console::style;
 use git2::Repository;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 use std::error::Error;
 
 use crate::utils::hash_command_vec;
 
-use super::DotfileMetadata;
+use super::{Config, DotfileMetadata};
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct Dotfile {
     pub file: String,
-    pub target: Box<Path>,
+    pub target: PathBuf,
     pub pre_install: Option<Vec<String>>,
     pub post_install: Option<Vec<String>>,
 }
@@ -164,6 +164,7 @@ impl Dotfile {
         &self,
         repo: &Repository,
         dotfile_name: &str,
+        config: &Config,
         metadata: Option<&DotfileMetadata>,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
         // Safe to unwrap here, repo.path() points to .git folder. Path will always
@@ -188,7 +189,7 @@ impl Dotfile {
                 let new_commit = add_and_commit(
                     repo,
                     Some(vec![Path::new(&self.file)]),
-                    &SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_name),
+                    &config.generate_commit_message(vec![dotfile_name]),
                     Some(vec![parent_commit]),
                     None,
                 )?;
@@ -203,7 +204,7 @@ impl Dotfile {
             let new_commit = add_and_commit(
                 repo,
                 Some(vec![Path::new(&self.file)]),
-                &SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_name),
+                &config.generate_commit_message(vec![dotfile_name]),
                 None,
                 Some("HEAD"),
             )?;
@@ -213,5 +214,156 @@ impl Dotfile {
                 self.hash_post_install(),
             ))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use super::*;
+
+    #[test]
+    fn test_hash_empty_pre_install() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        assert_eq!("", dotfile.hash_pre_install());
+    }
+
+    #[test]
+    fn test_hash_pre_install() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+            post_install: None,
+        };
+
+        assert_eq!(
+            "1ef98a8d0946d6512ca5da8242eb7a52a506de54",
+            dotfile.hash_pre_install()
+        );
+    }
+
+    #[test]
+    fn test_hash_empty_post_install() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        assert_eq!("", dotfile.hash_post_install());
+    }
+
+    #[test]
+    fn test_hash_post_install() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+        };
+
+        assert_eq!(
+            "1ef98a8d0946d6512ca5da8242eb7a52a506de54",
+            dotfile.hash_post_install()
+        );
+    }
+
+    #[test]
+    fn test_has_unexecuted_run_stages_no_metadata() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        assert_eq!(false, dotfile.has_unexecuted_run_stages(&None));
+    }
+
+    #[test]
+    fn test_has_unexecuted_run_stages_with_metadata_no_install_steps() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: "".to_string(),
+            pre_install_hash: "".to_string(),
+            post_install_hash: "".to_string(),
+        };
+
+        assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+    }
+
+    #[test]
+    fn test_has_unexecuted_run_stages_with_metadata_with_install_steps_true() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+            post_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: "".to_string(),
+            pre_install_hash: "".to_string(),
+            post_install_hash: "".to_string(),
+        };
+
+        assert_eq!(true, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+    }
+
+    #[test]
+    fn test_has_unexecuted_run_stages_with_metadata_with_install_steps_false() {
+        let dotfile = Dotfile {
+            file: "".to_string(),
+            target: PathBuf::new(),
+            pre_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+            post_install: Some(vec![
+                "echo".to_string(),
+                "ls".to_string(),
+                "cat".to_string(),
+            ]),
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: "".to_string(),
+            pre_install_hash: "1ef98a8d0946d6512ca5da8242eb7a52a506de54".to_string(),
+            post_install_hash: "1ef98a8d0946d6512ca5da8242eb7a52a506de54".to_string(),
+        };
+
+        assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
     }
 }

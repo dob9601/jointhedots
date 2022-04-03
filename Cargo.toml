@@ -1,6 +1,6 @@
 [package]
 name = "jointhedots"
-version = "0.0.16"
+version = "0.0.17"
 edition = "2018"
 license = "MIT"
 authors = ["Daniel O'Brien <dob9601@gmail.com>"]
@@ -12,7 +12,7 @@ name = "jtd"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "3.0.0-rc.7", features = ["derive"] }
+clap = { version = "3.1.8", features = ["derive"] }
 console = "0.15.0"
 dialoguer = "0.8.0"
 git2 = "0.14.2"
