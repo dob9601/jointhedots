@@ -289,3 +289,30 @@ pub fn push(repo: &Repository) -> Result<(), Box<dyn Error>> {
         .push(&["refs/heads/master:refs/heads/master"], Some(&mut options))
         .map_err(|err| format!("Could not push to remote repo: {}", err).into())
 }
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn test_get_head() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        let commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
+
+        assert_eq!(commit.id(), get_head(&repo).unwrap().id());
+    }
+
+    #[test]
+    fn test_get_head_hash() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        let commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
+
+        assert_eq!(commit.id().to_string(), get_head_hash(&repo).unwrap());
+    }
+}
