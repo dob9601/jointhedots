@@ -35,7 +35,7 @@ impl Config {
                     .replacen(",", "dna ", 1)
                     .chars()
                     .rev()
-                    .collect::<String>()
+                    .collect::<String>(),
             );
         }
 
@@ -62,6 +62,9 @@ mod tests {
 
         let commit_message = config.generate_commit_message(vec!["neovim", "kitty"]);
 
-        assert_eq!("🔁 Sync dotfiles for neovim and kitty", commit_message.as_str());
+        assert_eq!(
+            "🔁 Sync dotfiles for neovim and kitty",
+            commit_message.as_str()
+        );
     }
 }

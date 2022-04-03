@@ -248,7 +248,10 @@ mod tests {
             post_install: None,
         };
 
-        assert_eq!("1ef98a8d0946d6512ca5da8242eb7a52a506de54", dotfile.hash_pre_install());
+        assert_eq!(
+            "1ef98a8d0946d6512ca5da8242eb7a52a506de54",
+            dotfile.hash_pre_install()
+        );
     }
 
     #[test]
@@ -276,7 +279,10 @@ mod tests {
             ]),
         };
 
-        assert_eq!("1ef98a8d0946d6512ca5da8242eb7a52a506de54", dotfile.hash_post_install());
+        assert_eq!(
+            "1ef98a8d0946d6512ca5da8242eb7a52a506de54",
+            dotfile.hash_post_install()
+        );
     }
 
     #[test]
