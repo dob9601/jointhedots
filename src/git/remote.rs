@@ -3,7 +3,7 @@ use std::{error::Error, str::FromStr};
 use clap::ArgEnum;
 use strum_macros::{Display, EnumIter};
 
-#[derive(ArgEnum, Clone, EnumIter, Display, Debug)]
+#[derive(ArgEnum, Clone, EnumIter, Display, Debug, PartialEq)]
 pub enum ConnectionMethod {
     SSH,
     HTTPS,
@@ -79,7 +79,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_get_host_git_url() {
+    fn test_get_host_git_url_ssh_github() {
         let repo = "dob9601/dotfiles";
         let host = RepoHostName::GitHub;
         let method = ConnectionMethod::SSH;
@@ -92,12 +92,55 @@ mod tests {
     }
 
     #[test]
-    fn test_repo_host_name_from_str() {
+    fn test_get_host_git_url_https_gitlab() {
+        let repo = "dob9601/dotfiles";
+        let host = RepoHostName::GitLab;
+        let method = ConnectionMethod::HTTPS;
+
+        let host_url = get_host_git_url(repo, &host, &method).expect("Failed to get host url");
+        assert_eq!(
+            host_url,
+            String::from("https://gitlab.com/dob9601/dotfiles.git")
+        )
+    }
+
+    #[test]
+    fn test_repo_host_name_from_str_github() {
         let hostname = "github";
         assert_eq!(
             <RepoHostName as std::str::FromStr>::from_str(hostname)
                 .expect("Could not convert from str"),
             RepoHostName::GitHub
+        )
+    }
+
+    #[test]
+    fn test_repo_host_name_from_str_gitlab() {
+        let hostname = "gitlab";
+        assert_eq!(
+            <RepoHostName as std::str::FromStr>::from_str(hostname)
+                .expect("Could not convert from str"),
+            RepoHostName::GitLab
+        )
+    }
+
+    #[test]
+    fn test_connection_method_from_str_ssh() {
+        let method = "ssh";
+        assert_eq!(
+            <ConnectionMethod as std::str::FromStr>::from_str(method)
+                .expect("Could not convert from str"),
+            ConnectionMethod::SSH
+        )
+    }
+
+    #[test]
+    fn test_connection_method_from_str_https() {
+        let method = "https";
+        assert_eq!(
+            <ConnectionMethod as std::str::FromStr>::from_str(method)
+                .expect("Could not convert from str"),
+            ConnectionMethod::HTTPS
         )
     }
 }

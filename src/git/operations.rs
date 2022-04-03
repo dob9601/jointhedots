@@ -42,10 +42,7 @@ pub fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Er
     .map_err(|err| format!("Failed to set HEAD: {}", err).into())
 }
 
-pub fn get_commit<'a>(
-    repo: &'a Repository,
-    commit_hash: &str,
-) -> Result<Commit<'a>, Git2Error> {
+pub fn get_commit<'a>(repo: &'a Repository, commit_hash: &str) -> Result<Commit<'a>, Git2Error> {
     let (object, _) = repo.revparse_ext(commit_hash)?;
     object.peel_to_commit()
 }
@@ -344,7 +341,7 @@ mod tests {
     }
 
     #[test]
-    fn test_has_changes() {
+    fn test_has_changes_true() {
         let repo_dir = tempdir().unwrap();
         let repo = Repository::init(&repo_dir).unwrap();
 
@@ -353,5 +350,13 @@ mod tests {
         File::create(filepath).expect("Could not create file in repo");
 
         assert!(has_changes(&repo).unwrap());
+    }
+
+    #[test]
+    fn test_has_changes_false() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        assert!(!has_changes(&repo).unwrap());
     }
 }
