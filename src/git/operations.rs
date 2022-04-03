@@ -13,7 +13,7 @@ use git2_credentials::{CredentialHandler, CredentialUI};
 use crate::utils::get_theme;
 use lazy_static::lazy_static;
 
-pub fn get_head(repo: &Repository) -> Result<Commit, Box<dyn Error>> {
+pub(crate) fn get_head(repo: &Repository) -> Result<Commit, Box<dyn Error>> {
     let commit = repo
         .head()?
         .resolve()?
@@ -23,11 +23,11 @@ pub fn get_head(repo: &Repository) -> Result<Commit, Box<dyn Error>> {
     Ok(commit)
 }
 
-pub fn get_head_hash(repo: &Repository) -> Result<String, Box<dyn Error>> {
+pub(crate) fn get_head_hash(repo: &Repository) -> Result<String, Box<dyn Error>> {
     Ok(get_head(repo)?.id().to_string())
 }
 
-pub fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Error>> {
+pub(crate) fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Error>> {
     let (object, reference) = repo
         .revparse_ext(reference)
         .map_err(|err| format!("Ref not found: {}", err))?;
@@ -42,7 +42,10 @@ pub fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Er
     .map_err(|err| format!("Failed to set HEAD: {}", err).into())
 }
 
-pub fn get_commit<'a>(repo: &'a Repository, commit_hash: &str) -> Result<Commit<'a>, Git2Error> {
+pub(crate) fn get_commit<'a>(
+    repo: &'a Repository,
+    commit_hash: &str,
+) -> Result<Commit<'a>, Git2Error> {
     let (object, _) = repo.revparse_ext(commit_hash)?;
     object.peel_to_commit()
 }
@@ -52,7 +55,7 @@ lazy_static! {
         RwLock::new((None, None));
 }
 
-pub struct CredentialUIDialoguer;
+pub(crate) struct CredentialUIDialoguer;
 
 impl CredentialUI for CredentialUIDialoguer {
     fn ask_user_password(&self, username: &str) -> Result<(String, String), Box<dyn Error>> {
@@ -109,7 +112,7 @@ impl CredentialUI for CredentialUIDialoguer {
     }
 }
 
-pub fn generate_callbacks() -> Result<RemoteCallbacks<'static>, Box<dyn Error>> {
+pub(crate) fn generate_callbacks() -> Result<RemoteCallbacks<'static>, Box<dyn Error>> {
     let mut cb = git2::RemoteCallbacks::new();
     let git_config = git2::Config::open_default()
         .map_err(|err| format!("Could not open default git config: {}", err))?;
@@ -119,7 +122,7 @@ pub fn generate_callbacks() -> Result<RemoteCallbacks<'static>, Box<dyn Error>> 
     Ok(cb)
 }
 
-pub fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<dyn Error>> {
+pub(crate) fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<dyn Error>> {
     // Clone the project.
     let cb = generate_callbacks()?;
 
@@ -142,7 +145,7 @@ pub fn generate_signature() -> Result<Signature<'static>, Git2Error> {
     Signature::now("Jointhedots Sync", "jtd@danielobr.ie")
 }
 
-pub fn has_changes(repo: &Repository) -> Result<bool, Box<dyn Error>> {
+pub(crate) fn has_changes(repo: &Repository) -> Result<bool, Box<dyn Error>> {
     Ok(repo
         .statuses(None)?
         .iter()
@@ -177,7 +180,7 @@ pub fn add_all(repo: &Repository, file_paths: Option<Vec<&Path>>) -> Result<(), 
 /// # Returns
 ///
 /// The new commit in the repository
-pub fn add_and_commit<'a>(
+pub(crate) fn add_and_commit<'a>(
     repo: &'a Repository,
     file_paths: Option<Vec<&Path>>,
     message: &str,
@@ -292,6 +295,8 @@ pub fn push(repo: &Repository) -> Result<(), Box<dyn Error>> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+
     use tempfile::tempdir;
 
     use super::*;
@@ -314,5 +319,39 @@ mod tests {
         let commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
 
         assert_eq!(commit.id().to_string(), get_head_hash(&repo).unwrap());
+    }
+
+    #[test]
+    fn test_get_commit() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        let commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
+        let hash = commit.id().to_string();
+
+        assert_eq!(
+            get_commit(&repo, &hash).unwrap().id().to_string(),
+            commit.id().to_string()
+        );
+    }
+
+    #[test]
+    fn test_generate_signature() {
+        let signature = generate_signature().unwrap();
+
+        assert_eq!(signature.email().unwrap(), "jtd@danielobr.ie");
+        assert_eq!(signature.name().unwrap(), "Jointhedots Sync");
+    }
+
+    #[test]
+    fn test_has_changes() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("file.rs"));
+        File::create(filepath).expect("Could not create file in repo");
+
+        assert!(has_changes(&repo).unwrap());
     }
 }
