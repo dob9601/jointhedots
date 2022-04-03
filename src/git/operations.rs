@@ -13,7 +13,7 @@ use git2_credentials::{CredentialHandler, CredentialUI};
 use crate::utils::get_theme;
 use lazy_static::lazy_static;
 
-pub(crate) fn get_head(repo: &Repository) -> Result<Commit, Box<dyn Error>> {
+pub fn get_head(repo: &Repository) -> Result<Commit, Box<dyn Error>> {
     let commit = repo
         .head()?
         .resolve()?
@@ -23,11 +23,11 @@ pub(crate) fn get_head(repo: &Repository) -> Result<Commit, Box<dyn Error>> {
     Ok(commit)
 }
 
-pub(crate) fn get_head_hash(repo: &Repository) -> Result<String, Box<dyn Error>> {
+pub fn get_head_hash(repo: &Repository) -> Result<String, Box<dyn Error>> {
     Ok(get_head(repo)?.id().to_string())
 }
 
-pub(crate) fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Error>> {
+pub fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Error>> {
     let (object, reference) = repo
         .revparse_ext(reference)
         .map_err(|err| format!("Ref not found: {}", err))?;
@@ -42,7 +42,7 @@ pub(crate) fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box
     .map_err(|err| format!("Failed to set HEAD: {}", err).into())
 }
 
-pub(crate) fn get_commit<'a>(
+pub fn get_commit<'a>(
     repo: &'a Repository,
     commit_hash: &str,
 ) -> Result<Commit<'a>, Git2Error> {
@@ -55,7 +55,7 @@ lazy_static! {
         RwLock::new((None, None));
 }
 
-pub(crate) struct CredentialUIDialoguer;
+pub struct CredentialUIDialoguer;
 
 impl CredentialUI for CredentialUIDialoguer {
     fn ask_user_password(&self, username: &str) -> Result<(String, String), Box<dyn Error>> {
@@ -112,7 +112,7 @@ impl CredentialUI for CredentialUIDialoguer {
     }
 }
 
-pub(crate) fn generate_callbacks() -> Result<RemoteCallbacks<'static>, Box<dyn Error>> {
+pub fn generate_callbacks() -> Result<RemoteCallbacks<'static>, Box<dyn Error>> {
     let mut cb = git2::RemoteCallbacks::new();
     let git_config = git2::Config::open_default()
         .map_err(|err| format!("Could not open default git config: {}", err))?;
@@ -122,7 +122,7 @@ pub(crate) fn generate_callbacks() -> Result<RemoteCallbacks<'static>, Box<dyn E
     Ok(cb)
 }
 
-pub(crate) fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<dyn Error>> {
+pub fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<dyn Error>> {
     // Clone the project.
     let cb = generate_callbacks()?;
 
@@ -145,7 +145,7 @@ pub fn generate_signature() -> Result<Signature<'static>, Git2Error> {
     Signature::now("Jointhedots Sync", "jtd@danielobr.ie")
 }
 
-pub(crate) fn has_changes(repo: &Repository) -> Result<bool, Box<dyn Error>> {
+pub fn has_changes(repo: &Repository) -> Result<bool, Box<dyn Error>> {
     Ok(repo
         .statuses(None)?
         .iter()
@@ -180,7 +180,7 @@ pub fn add_all(repo: &Repository, file_paths: Option<Vec<&Path>>) -> Result<(), 
 /// # Returns
 ///
 /// The new commit in the repository
-pub(crate) fn add_and_commit<'a>(
+pub fn add_and_commit<'a>(
     repo: &'a Repository,
     file_paths: Option<Vec<&Path>>,
     message: &str,
