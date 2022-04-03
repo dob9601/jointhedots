@@ -5,8 +5,7 @@ use tempfile::tempdir;
 use crate::{
     cli::SyncSubcommandArgs,
     git::{operations::clone_repo, remote::get_host_git_url},
-    structs::AggregatedDotfileMetadata,
-    utils::get_manifest,
+    structs::{AggregatedDotfileMetadata, Manifest},
 };
 
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
@@ -19,7 +18,7 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
     let mut manifest_path = target_dir.path().to_path_buf();
     manifest_path.push(args.manifest);
 
-    let manifest = get_manifest(&manifest_path)?;
+    let manifest = Manifest::get(&manifest_path)?;
 
     manifest.sync(
         &repo,

@@ -2,7 +2,12 @@ use console::style;
 use dialoguer::{Confirm, MultiSelect};
 use git2::{Oid, Repository};
 use serde::Deserialize;
-use std::{collections::HashMap, error::Error, path::PathBuf};
+use std::{
+    collections::HashMap,
+    error::Error,
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     git::operations::{add_and_commit, checkout_ref, get_head_hash, push},
@@ -23,6 +28,19 @@ pub struct Manifest {
 }
 
 impl Manifest {
+    pub fn get(path: &Path) -> Result<Manifest, Box<dyn Error>> {
+        let config: Manifest = serde_yaml::from_reader(File::open(path).map_err(|_| {
+            format!(
+                "Could not find manifest {} in repository.",
+                path.file_name()
+                    .map(|v| v.to_string_lossy())
+                    .unwrap_or_else(|| "N/A".into())
+            )
+        })?)
+        .map_err(|err| format!("Could not parse manifest: {}", err))?;
+        Ok(config)
+    }
+
     pub fn install(
         &self,
         repo: Repository,
@@ -257,5 +275,43 @@ impl IntoIterator for Manifest {
 
     fn into_iter(self) -> Self::IntoIter {
         self.data.into_iter()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs::File,
+        io::Write,
+        path::{Path, PathBuf},
+    };
+
+    use super::*;
+    use tempfile::tempdir;
+
+    const SAMPLE_MANIFEST: &str = r"
+kitty:
+  file: kitty.conf
+  target: ~/.config/kitty/kitty.conf
+        ";
+
+    #[test]
+    fn test_manifest_get() {
+        let tempdir = tempdir().unwrap();
+
+        let path = tempdir.path().join(Path::new("manifest.yaml"));
+        let mut manifest_file = File::create(path.to_owned()).unwrap();
+        manifest_file.write(SAMPLE_MANIFEST.as_bytes()).unwrap();
+
+        let manifest = Manifest::get(&path).unwrap();
+
+        let kitty_dotfile = Dotfile {
+            file: "kitty.conf".to_string(),
+            target: PathBuf::from("~/.config/kitty/kitty.conf"),
+            pre_install: None,
+            post_install: None,
+        };
+
+        assert_eq!(manifest.data["kitty"], kitty_dotfile);
     }
 }

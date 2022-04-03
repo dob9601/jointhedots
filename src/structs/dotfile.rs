@@ -13,7 +13,7 @@ use crate::utils::hash_command_vec;
 
 use super::{Config, DotfileMetadata};
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct Dotfile {
     pub file: String,
     pub target: PathBuf,
