@@ -393,9 +393,13 @@ mod tests {
         let repo_dir = tempdir().expect("Could not create temporary repo dir");
         let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
 
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("file.rs"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+
         add_and_commit(
             &repo,
-            Some(vec![]),
+            Some(vec![&filepath]),
             "commit message",
             Some(vec![]),
             Some("HEAD"),
