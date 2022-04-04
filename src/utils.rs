@@ -36,6 +36,7 @@ pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn get_theme() -> impl Theme {
     ColorfulTheme {
         values_style: Style::new().yellow().dim(),
