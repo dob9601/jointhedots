@@ -36,15 +36,3 @@ macro_rules! error {
         println!("{}", style(format!(concat!("⚠ ", $fmt), $($($arg)*)?)).red());
     };
 }
-
-#[cfg(test)]
-mod tests {
-
-    use super::*;
-
-    #[test]
-    fn test_log_info() {
-        let x = "asd";
-        info!("Foobar! {}", x);
-    }
-}
