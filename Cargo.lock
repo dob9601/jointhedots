@@ -420,7 +420,7 @@ dependencies = [
 
 [[package]]
 name = "jointhedots"
-version = "0.0.17"
+version = "0.0.18"
 dependencies = [
  "clap",
  "console 0.15.0",

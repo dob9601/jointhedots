@@ -319,6 +319,33 @@ mod tests {
     }
 
     #[test]
+    fn test_checkout_ref() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        println!("{:?}", repo_dir);
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let first_commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
+        let second_commit = add_and_commit(
+            &repo,
+            None,
+            "",
+            Some(vec![first_commit.clone()]),
+            Some("HEAD"),
+        )
+        .unwrap();
+
+        assert_eq!(
+            repo.head().unwrap().peel_to_commit().unwrap().id(),
+            second_commit.id()
+        );
+
+        checkout_ref(&repo, &first_commit.id().to_string())
+            .expect("Failed to checkout first commit");
+
+        assert_eq!(get_head_hash(&repo).unwrap(), first_commit.id().to_string());
+    }
+
+    #[test]
     fn test_get_commit() {
         let repo_dir = tempdir().unwrap();
         let repo = Repository::init(&repo_dir).unwrap();
