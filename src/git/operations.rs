@@ -76,7 +76,7 @@ impl CredentialUI for CredentialUIDialoguer {
             Some(password) => password.to_owned(),
             None => {
                 let pass = Password::with_theme(&theme)
-                    .with_prompt("password (hidden)")
+                    .with_prompt("Password (hidden)")
                     .allow_empty_password(true)
                     .interact()?;
                 credential_cache.1 = Some(pass.to_owned());
@@ -288,4 +288,157 @@ pub fn push(repo: &Repository) -> Result<(), Box<dyn Error>> {
     remote
         .push(&["refs/heads/master:refs/heads/master"], Some(&mut options))
         .map_err(|err| format!("Could not push to remote repo: {}", err).into())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn test_get_head() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
+
+        assert_eq!(commit.id(), get_head(&repo).unwrap().id());
+    }
+
+    #[test]
+    fn test_get_head_hash() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        let commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
+
+        assert_eq!(commit.id().to_string(), get_head_hash(&repo).unwrap());
+    }
+
+    #[test]
+    fn test_get_commit() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        let commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
+        let hash = commit.id().to_string();
+
+        assert_eq!(
+            get_commit(&repo, &hash).unwrap().id().to_string(),
+            commit.id().to_string()
+        );
+    }
+
+    #[test]
+    fn test_ask_user_password_with_cache() {
+        {
+            let mut credential_cache = CREDENTIAL_CACHE
+                .write()
+                .expect("Could not get write handle on credential cache");
+            credential_cache.0 = Some("username".to_string());
+            credential_cache.1 = Some("password".to_string());
+        }
+
+        let credential_ui = CredentialUIDialoguer;
+
+        let credentials = credential_ui
+            .ask_user_password("")
+            .expect("Could not get user password");
+        assert_eq!(
+            ("username".to_string(), "password".to_string()),
+            credentials
+        );
+    }
+
+    #[test]
+    fn test_ask_ssh_passphrase_with_cache() {
+        {
+            let mut credential_cache = CREDENTIAL_CACHE
+                .write()
+                .expect("Could not get write handle on credential cache");
+            credential_cache.1 = Some("password".to_string());
+        }
+
+        let credential_ui = CredentialUIDialoguer;
+
+        let credentials = credential_ui
+            .ask_ssh_passphrase("")
+            .expect("Could not get user password");
+        assert_eq!("password".to_string(), credentials);
+    }
+
+    #[test]
+    fn test_generate_callbacks() {
+        let _callbacks = generate_callbacks().expect("Failed to generate callbacks");
+        // FIXME: Find some way to assert the return type of callbacks
+    }
+
+    #[test]
+    fn test_clone_repo() {
+        let repo_dir = tempdir().expect("Failed to create tempdir");
+
+        let _repo = clone_repo("https://github.com/dob9601/dotfiles.git", repo_dir.path())
+            .expect("Failed to clone repo");
+
+        assert!(Path::exists(
+            &repo_dir.path().to_owned().join(Path::new("jtd.yaml"))
+        ));
+    }
+
+    #[test]
+    fn test_add_and_commit() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("file.rs"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+
+        add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+        assert_eq!(
+            "commit message",
+            get_head(&repo)
+                .unwrap()
+                .message()
+                .expect("No commit message found")
+        );
+    }
+
+    #[test]
+    fn test_generate_signature() {
+        let signature = generate_signature().unwrap();
+
+        assert_eq!(signature.email().unwrap(), "jtd@danielobr.ie");
+        assert_eq!(signature.name().unwrap(), "Jointhedots Sync");
+    }
+
+    #[test]
+    fn test_has_changes_true() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("file.rs"));
+        File::create(filepath).expect("Could not create file in repo");
+
+        assert!(has_changes(&repo).unwrap());
+    }
+
+    #[test]
+    fn test_has_changes_false() {
+        let repo_dir = tempdir().unwrap();
+        let repo = Repository::init(&repo_dir).unwrap();
+
+        assert!(!has_changes(&repo).unwrap());
+    }
 }

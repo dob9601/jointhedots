@@ -5,7 +5,7 @@ use tempfile::tempdir;
 use crate::cli::InstallSubcommandArgs;
 use crate::git::operations::clone_repo;
 use crate::git::remote::get_host_git_url;
-use crate::utils::get_manifest;
+use crate::structs::Manifest;
 
 pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_host_git_url(&args.repository, &args.source, &args.method)?;
@@ -16,7 +16,7 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
     let mut manifest_path = target_dir.path().to_path_buf();
     manifest_path.push(args.manifest);
 
-    let manifest = get_manifest(&manifest_path)?;
+    let manifest = Manifest::get(&manifest_path)?;
 
     manifest.install(repo, args.all, args.target_dotfiles, args.force)
 }

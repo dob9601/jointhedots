@@ -1,8 +1,6 @@
 use std::{
     error::Error,
-    fs::File,
     io::{self, Write},
-    path::Path,
     process::Command,
 };
 
@@ -12,8 +10,6 @@ use dialoguer::{
     theme::{ColorfulTheme, Theme},
 };
 use sha1::{Digest, Sha1};
-
-use crate::structs::Manifest;
 
 pub const SPINNER_FRAMES: &[&str] = &[
     "⢀⠀", "⡀⠀", "⠄⠀", "⢂⠀", "⡂⠀", "⠅⠀", "⢃⠀", "⡃⠀", "⠍⠀", "⢋⠀", "⡋⠀", "⠍⠁", "⢋⠁", "⡋⠁", "⠍⠉", "⠋⠉",
@@ -40,20 +36,7 @@ pub fn run_command_vec(command_vec: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn get_manifest(manifest_path: &Path) -> Result<Manifest, Box<dyn Error>> {
-    let config: Manifest = serde_yaml::from_reader(File::open(manifest_path).map_err(|_| {
-        format!(
-            "Could not find manifest {} in repository.",
-            manifest_path
-                .file_name()
-                .map(|v| v.to_string_lossy())
-                .unwrap_or_else(|| "N/A".into())
-        )
-    })?)
-    .map_err(|err| format!("Could not parse manifest: {}", err))?;
-    Ok(config)
-}
-
+#[cfg(not(tarpaulin_include))]
 pub(crate) fn get_theme() -> impl Theme {
     ColorfulTheme {
         values_style: Style::new().yellow().dim(),
@@ -71,6 +54,8 @@ pub(crate) fn hash_command_vec(command_vec: &[String]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
 
     #[test]
