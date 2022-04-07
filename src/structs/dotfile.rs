@@ -196,14 +196,14 @@ impl Dotfile {
                     repo,
                     Some(vec![Path::new(&self.file)]),
                     &config.generate_commit_message(vec![dotfile_name]),
-                    Some(vec![parent_commit]),
+                    Some(vec![&parent_commit]),
                     Some("HEAD"),
                 )?;
 
-                let new_commit = repo.reference_to_annotated_commit(&repo.head()?)?; // This one works
+                let new_commit = repo.reference_to_annotated_commit(&repo.head()?)?;
                 checkout_ref(&repo, &head_ref_name)?;
 
-                let merge_target_commit = repo.reference_to_annotated_commit(&repo.head()?)?; // This one works
+                let merge_target_commit = repo.reference_to_annotated_commit(&repo.head()?)?;
 
                 let merge_commit = normal_merge(repo, &merge_target_commit, &new_commit)
                     .map_err(|err| format!("Could not merge commits: {}", err))?;
