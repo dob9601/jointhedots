@@ -181,7 +181,7 @@ pub fn add_and_commit<'a>(
     repo: &'a Repository,
     file_paths: Option<Vec<&Path>>,
     message: &str,
-    maybe_parents: Option<Vec<Commit>>,
+    maybe_parents: Option<Vec<&Commit>>,
     update_ref: Option<&str>,
 ) -> Result<Commit<'a>, Box<dyn Error>> {
     add_all(&repo, file_paths)?;
@@ -191,18 +191,15 @@ pub fn add_and_commit<'a>(
     let tree = repo.find_tree(oid)?;
     let signature = generate_signature()?;
 
+    let head;
     let parents = match maybe_parents {
         Some(parent_vec) => parent_vec,
-        None => vec![get_head(repo)?],
+        None => {
+            head = get_head(repo)?;
+            vec![&head]
+        }
     };
-    let oid = repo.commit(
-        update_ref,
-        &signature,
-        &signature,
-        message,
-        &tree,
-        &parents.iter().collect::<Vec<&Commit>>(),
-    )?;
+    let oid = repo.commit(update_ref, &signature, &signature, message, &tree, &parents)?;
 
     repo.find_commit(oid)
         .map_err(|err| format!("Failed to commit to repo: {}", err.to_string()).into())
@@ -319,6 +316,27 @@ mod tests {
     }
 
     #[test]
+    fn test_checkout_ref() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        println!("{:?}", repo_dir);
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let first_commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
+        let second_commit =
+            add_and_commit(&repo, None, "", Some(vec![&first_commit]), Some("HEAD")).unwrap();
+
+        assert_eq!(
+            repo.head().unwrap().peel_to_commit().unwrap().id(),
+            second_commit.id()
+        );
+
+        checkout_ref(&repo, &first_commit.id().to_string())
+            .expect("Failed to checkout first commit");
+
+        assert_eq!(get_head_hash(&repo).unwrap(), first_commit.id().to_string());
+    }
+
+    #[test]
     fn test_get_commit() {
         let repo_dir = tempdir().unwrap();
         let repo = Repository::init(&repo_dir).unwrap();
@@ -412,6 +430,48 @@ mod tests {
                 .message()
                 .expect("No commit message found")
         );
+    }
+
+    #[test]
+    fn test_normal_merge() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let first_commit = add_and_commit(
+            &repo,
+            Some(vec![]),
+            "1st commit",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to create 1st commit");
+
+        let second_commit = add_and_commit(
+            &repo,
+            Some(vec![]),
+            "2nd commit",
+            Some(vec![&first_commit]),
+            Some("HEAD"),
+        )
+        .expect("Failed to create 2nd commit");
+
+        let head_ref = &repo.head().unwrap();
+        let head_ref_name = head_ref.name().unwrap();
+        let annotated_main_head = repo.reference_to_annotated_commit(&head_ref).unwrap();
+
+        let branch = repo
+            .branch("branch", &first_commit, true)
+            .expect("Failed to create branch");
+        checkout_ref(&repo, "branch").expect("Failed to checkout new branch");
+
+        let annotated_branch_head = repo
+            .reference_to_annotated_commit(&repo.head().unwrap())
+            .unwrap();
+
+        normal_merge(&repo, &annotated_branch_head, &annotated_branch_head)
+            .expect("Failed to merge branch");
+
+        // TODO: Some assertion on the repo state after this
     }
 
     #[test]
