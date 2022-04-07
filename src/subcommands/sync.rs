@@ -12,6 +12,7 @@ use crate::{
 pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn Error>> {
     let url = get_host_git_url(&args.repository, &args.source, &args.method)?;
     let target_dir = tempdir()?;
+    println!("{:?}", target_dir);
 
     let repo = clone_repo(&url, target_dir.path())?;
 

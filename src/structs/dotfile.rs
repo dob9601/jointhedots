@@ -1,4 +1,4 @@
-use crate::git::operations::{add_and_commit, get_commit, get_head, has_changes, normal_merge};
+use crate::git::operations::{add_and_commit, checkout_ref, get_commit, has_changes, normal_merge};
 use crate::utils::run_command_vec;
 use crate::MANIFEST_PATH;
 use console::style;
@@ -66,13 +66,13 @@ impl Dotfile {
 
             if let Some(metadata) = metadata {
                 if self.hash_pre_install() == metadata.pre_install_hash {
-                    println!("{}", style("  🛈 Skipping pre install steps as they have been run in a previous install").blue());
+                    info!("{}", style("Skipping pre install steps as they have been run in a previous install").blue());
                     skip_pre_install = true;
                 }
             }
 
             if !skip_pre_install {
-                println!("{}", style("  ✔ Running pre-install steps").green());
+                success!("Running pre-install steps");
                 run_command_vec(pre_install)?;
                 hash = self.hash_pre_install();
             }
@@ -91,13 +91,15 @@ impl Dotfile {
 
             if let Some(metadata) = metadata {
                 if self.hash_post_install() == metadata.post_install_hash {
-                    println!("{}", style("  🛈 Skipping post install steps as they have been run in a previous install").blue());
+                    success!(
+                        "Skipping post install steps as they have been run in a previous install"
+                    );
                     skip_post_install = true;
                 }
             }
 
             if !skip_post_install {
-                println!("{}", style("  ✔ Running post-install steps").green());
+                success!("Running post-install steps");
                 run_command_vec(post_install)?;
                 hash = self.hash_post_install();
             }
@@ -121,14 +123,10 @@ impl Dotfile {
         }
         fs::copy(origin_path, target_path).expect("Failed to copy target file");
 
-        println!(
-            "{}",
-            style(format!(
-                "  ✔ Installed config file {} to location {}",
-                &self.file,
-                target_path.to_str().expect("Invalid unicode in path")
-            ))
-            .green()
+        success!(
+            "Installed config file {} to location {}",
+            &self.file,
+            target_path.to_str().expect("Invalid unicode in path")
         );
 
         Ok(())
@@ -182,21 +180,37 @@ impl Dotfile {
             let parent_commit = get_commit(repo, &metadata.commit_hash).map_err(
                 |_| format!("Could not find last sync'd commit for {}, manifest is corrupt. Try fresh-installing \
                             this dotfile or manually correcting the commit hash in {}", dotfile_name, MANIFEST_PATH))?;
-            let merge_target = get_head(repo)?;
 
+            let head_ref = repo.head()?;
+            let head_ref_name = head_ref.name().unwrap();
+
+            checkout_ref(&repo, &parent_commit.id().to_string())?;
             fs::copy(origin_path, target_path)?;
+
             if has_changes(repo)? {
-                let new_commit = add_and_commit(
+                let new_branch_name = format!("merge-{}-dotfile", dotfile_name);
+                let _new_branch = repo.branch(&new_branch_name, &parent_commit, true)?;
+                checkout_ref(&repo, &new_branch_name)?;
+
+                let _new_commit = add_and_commit(
                     repo,
                     Some(vec![Path::new(&self.file)]),
                     &config.generate_commit_message(vec![dotfile_name]),
                     Some(vec![parent_commit]),
-                    None,
+                    Some("HEAD"),
                 )?;
 
-                let merge_commit = normal_merge(repo, &merge_target, &new_commit)?;
+                let new_commit = repo.reference_to_annotated_commit(&repo.head()?)?; // This one works
+                checkout_ref(&repo, &head_ref_name)?;
+
+                let merge_target_commit = repo.reference_to_annotated_commit(&repo.head()?)?; // This one works
+
+                let merge_commit = normal_merge(repo, &merge_target_commit, &new_commit)
+                    .map_err(|err| format!("Could not merge commits: {}", err))?;
 
                 new_metadata.commit_hash = merge_commit.id().to_string();
+            } else {
+                info!("Skipping syncing {} as no changes made", dotfile_name);
             }
             Ok(new_metadata)
         } else {
