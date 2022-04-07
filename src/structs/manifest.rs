@@ -42,13 +42,9 @@ impl Manifest {
             Some(dotfiles.iter().map(|(v, _)| v.as_str()).collect()),
             &aggregated_metadata,
         ) {
-            println!(
-                "{}",
-                style(
-                    "! Some of the dotfiles being installed contain pre_install and/or post_install \
+            warn!(
+                "! Some of the dotfiles being installed contain pre_install and/or post_install \
                 steps. If you do not trust this manifest, you can skip running them."
-                )
-                .yellow()
             );
             skip_install_commands = Confirm::with_theme(&theme)
                 .with_prompt("Skip running pre/post install?")
@@ -241,11 +237,13 @@ impl Manifest {
                     }
                 }
             }
+        } else {
+            info!("Not squashing commits");
         }
 
         push(repo)?;
 
-        println!("{}", style("✔ Successfully synced changes!").green());
+        success!("Successfully synced changes!");
 
         aggregated_metadata.save()?;
         Ok(())

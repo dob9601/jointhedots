@@ -4,7 +4,9 @@ use std::{error::Error, path::Path, sync::RwLock};
 use console::style;
 use dialoguer::{Input, Password};
 use git2::build::CheckoutBuilder;
-use git2::{Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature, Status};
+use git2::{
+    AnnotatedCommit, Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature, Status,
+};
 use git2::{Error as Git2Error, IndexAddOption, MergeOptions};
 use git2_credentials::{CredentialHandler, CredentialUI};
 
@@ -29,6 +31,8 @@ pub fn checkout_ref(repo: &Repository, reference: &str) -> Result<(), Box<dyn Er
     let (object, reference) = repo
         .revparse_ext(reference)
         .map_err(|err| format!("Ref not found: {}", err))?;
+
+    repo.checkout_tree(&object, None)?;
 
     if let Some(gref) = reference {
         repo.set_head(gref.name().unwrap())
@@ -129,7 +133,7 @@ pub fn clone_repo(url: &str, target_dir: &Path) -> Result<git2::Repository, Box<
         .clone(url, target_dir)
         .map_err(|err| format!("Could not clone repo: {}", &err))?;
 
-    println!("{}", style("✔ Successfully cloned repository!").green());
+    success!("Successfully cloned repository!");
 
     Ok(repo)
 }
@@ -146,6 +150,17 @@ pub fn has_changes(repo: &Repository) -> Result<bool, Box<dyn Error>> {
         .collect::<Vec<Status>>()
         .len()
         > 0)
+}
+
+pub fn add_all(repo: &Repository, file_paths: Option<Vec<&Path>>) -> Result<(), Box<dyn Error>> {
+    let mut index = repo.index()?;
+    if let Some(file_paths) = file_paths {
+        index.add_all(file_paths.iter(), IndexAddOption::DEFAULT, None)?;
+    } else {
+        index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
+    }
+    index.write()?;
+    Ok(())
 }
 
 /// Add and commit the specified files to the repository index.
@@ -166,30 +181,22 @@ pub fn add_and_commit<'a>(
     repo: &'a Repository,
     file_paths: Option<Vec<&Path>>,
     message: &str,
-    parents: Option<Vec<Commit>>,
-    update_head: Option<&str>,
+    maybe_parents: Option<Vec<Commit>>,
+    update_ref: Option<&str>,
 ) -> Result<Commit<'a>, Box<dyn Error>> {
+    add_all(&repo, file_paths)?;
+
     let mut index = repo.index()?;
-
-    if let Some(file_paths) = file_paths {
-        for path in file_paths {
-            index.add_path(path)?;
-        }
-    } else {
-        index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
-    }
-
     let oid = index.write_tree()?;
     let tree = repo.find_tree(oid)?;
-
     let signature = generate_signature()?;
 
-    let parents = match parents {
+    let parents = match maybe_parents {
         Some(parent_vec) => parent_vec,
         None => vec![get_head(repo)?],
     };
     let oid = repo.commit(
-        update_head,
+        update_ref,
         &signature,
         &signature,
         message,
@@ -201,26 +208,20 @@ pub fn add_and_commit<'a>(
         .map_err(|err| format!("Failed to commit to repo: {}", err.to_string()).into())
 }
 
-// Adapted from https://github.com/rust-lang/git2-rs/blob/master/examples/pull.rs
 pub fn normal_merge<'a>(
     repo: &'a Repository,
-    main_tip: &Commit,
-    feature_tip: &Commit,
-) -> Result<Commit<'a>, git2::Error> {
-    let local_tree = repo.find_commit(main_tip.id())?.tree()?;
-    let remote_tree = repo.find_commit(feature_tip.id())?.tree()?;
-    let ancestor = repo
-        .find_commit(repo.merge_base(main_tip.id(), feature_tip.id())?)?
-        .tree()?;
-
+    main_tip: &AnnotatedCommit,
+    feature_tip: &AnnotatedCommit,
+) -> Result<Commit<'a>, Box<dyn Error>> {
     let mut options = MergeOptions::new();
     options
         .standard_style(true)
         .minimal(true)
         .fail_on_conflict(false);
+    repo.merge(&[feature_tip], Some(&mut options), None)?;
 
-    let mut idx = repo.merge_trees(&ancestor, &local_tree, &remote_tree, Some(&options))?;
-
+    let mut idx = repo.index()?;
+    idx.read(false)?;
     if idx.has_conflicts() {
         let repo_dir = repo.path().to_string_lossy().replace(".git/", "");
         repo.checkout_index(
@@ -231,19 +232,14 @@ pub fn normal_merge<'a>(
                     .conflict_style_merge(true),
             ),
         )?;
-        println!(
-            "{}",
-            style(format!(
-                "⚠ Merge conficts detected. Resolve them manually with the following steps:\n\n  \
-                1. Open the temporary repository (located in {}),\n  \
-                2. Resolve any merge conflicts as you would with any other repository\n  \
-                3. Adding the changed files but NOT committing them\n  \
-                4. Returning to this terminal and pressing the \"Enter\" key\n",
-                repo_dir
-            ))
-            .red()
+        error!(
+            "Merge conficts detected. Resolve them manually with the following steps:\n\n  \
+             1. Open the temporary repository (located in {}),\n  \
+             2. Resolve any merge conflicts as you would with any other repository\n  \
+             3. Adding the changed files but NOT committing them\n  \
+             4. Returning to this terminal and pressing the \"Enter\" key\n",
+            repo_dir
         );
-
         loop {
             print!(
                 "{}",
@@ -256,37 +252,31 @@ pub fn normal_merge<'a>(
             let mut _newline = String::new();
             stdin().read_line(&mut _newline).unwrap_or(0);
 
-            idx = repo.index()?;
             idx.read(false)?;
 
             if !idx.has_conflicts() {
                 break;
             } else {
-                println!("{}", style("Conflicts not resolved").red())
+                error!("Conflicts not resolved");
             }
         }
     }
-    // SYNC FAILS FIRST TIME, ALWAYS SUCCEEDS SECOND?
-    // LINES BELOW DONT SEEM TO BE NECESSARY
-    // SOME WEIRD REFS BEING PUSHED TO THE GIT REPO? UNSURE HOW TO CHECK
-    let result_tree = repo.find_tree(idx.write_tree_to(repo)?)?;
-    // now create the merge commit
-    let msg = format!("Merge: {} into {}", feature_tip.id(), main_tip.id());
-    let sig = generate_signature()?;
-    let local_commit = repo.find_commit(main_tip.id())?;
-    let remote_commit = repo.find_commit(feature_tip.id())?;
-    // Do our merge commit and set current branch head to that commit.
-    let merge_commit = repo.commit(
+
+    let tree = repo.find_tree(repo.index()?.write_tree()?)?;
+    let signature = generate_signature()?;
+    repo.commit(
         Some("HEAD"),
-        &sig,
-        &sig,
-        &msg,
-        &result_tree,
-        &[&local_commit, &remote_commit],
+        &signature,
+        &signature,
+        "Merge",
+        &tree,
+        &[
+            &repo.find_commit(main_tip.id())?,
+            &repo.find_commit(feature_tip.id())?,
+        ],
     )?;
-    // Set working tree to match head.
-    repo.checkout_head(None)?;
-    Ok(repo.find_commit(merge_commit)?)
+    repo.cleanup_state()?;
+    Ok(get_head(&repo)?)
 }
 
 pub fn push(repo: &Repository) -> Result<(), Box<dyn Error>> {
