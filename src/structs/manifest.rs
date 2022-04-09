@@ -61,7 +61,7 @@ impl Manifest {
             &aggregated_metadata,
         ) {
             warn!(
-                "! Some of the dotfiles being installed contain pre_install and/or post_install \
+                "Some of the dotfiles being installed contain pre_install and/or post_install \
                 steps. If you do not trust this manifest, you can skip running them."
             );
             skip_install_commands = Confirm::with_theme(&theme)
@@ -183,7 +183,7 @@ impl Manifest {
             println!(
                 "{}",
                 style(
-                    "! Could not find any metadata on the currently installed dotfiles. Proceed with naive sync and overwrite remote files?"
+                    "Could not find any metadata on the currently installed dotfiles. Proceed with naive sync and overwrite remote files?"
                 )
                 .yellow()
             );
