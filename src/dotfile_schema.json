@@ -1,46 +1,46 @@
 {
-  "title": "JTDManifest",
-  "description": "A collection of Dotfiles",
-  "type": "object",
-  "properties": {
-    ".config": {
-      "properties": {
-        "squash_commits": {
-          "type": "boolean"
-        },
-        "commit_prefix": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    }
-  },
-  "additionalProperties": {
+    "title": "JTDManifest",
+    "description": "A collection of Dotfiles",
     "type": "object",
     "properties": {
-      "file": {
-        "type": "string"
-      },
-      "target": {
-        "type": "string"
-      },
-      "pre_install": {
-        "type": "array",
-        "items": {
-          "type": "string"
+        ".config": {
+            "properties": {
+                "squash_commits": {
+                    "type": "boolean"
+                },
+                "commit_prefix": {
+                    "type": "string"
+                }
+            },
+            "additionalProperties": false
         }
-      },
-      "post_install": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
-      }
     },
-    "required": [
-      "file",
-      "target"
-    ],
-    "additionalProperties": false
-  },
+    "additionalProperties": {
+        "type": "object",
+        "properties": {
+            "file": {
+                "type": "string"
+            },
+            "target": {
+                "type": "string"
+            },
+            "pre_install": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            },
+            "post_install": {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }
+        },
+        "required": [
+            "file",
+            "target"
+        ],
+        "additionalProperties": false
+    }
 }
