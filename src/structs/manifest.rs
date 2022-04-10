@@ -10,7 +10,7 @@ use std::{
 };
 
 use crate::{
-    git::operations::{add_and_commit, get_head_hash, push},
+    git::operations::{add_and_commit, get_repo_dir, push},
     utils::get_theme,
 };
 
@@ -47,19 +47,21 @@ impl Manifest {
         install_all: bool,
         target_dotfiles: Vec<String>,
         force_install: bool,
+        trust: bool,
     ) -> Result<(), Box<dyn Error>> {
         let theme = get_theme();
-        let head_hash = get_head_hash(&repo)?;
 
         let mut skip_install_commands = false;
 
         let dotfiles = self.get_target_dotfiles(target_dotfiles, install_all);
         let mut aggregated_metadata = AggregatedDotfileMetadata::get_or_create()?;
 
-        if self.has_unexecuted_run_stages(
-            Some(dotfiles.iter().map(|(v, _)| v.as_str()).collect()),
-            &aggregated_metadata,
-        ) {
+        if !trust
+            && self.has_unexecuted_run_stages(
+                Some(dotfiles.iter().map(|(v, _)| v.as_str()).collect()),
+                &aggregated_metadata,
+            )
+        {
             warn!(
                 "Some of the dotfiles being installed contain pre_install and/or post_install \
                 steps. If you do not trust this manifest, you can skip running them."
@@ -72,9 +74,7 @@ impl Manifest {
                 .unwrap();
         }
 
-        // Safe to unwrap here, repo.path() points to .git folder. Path will always
-        // have a component after parent.
-        let repo_dir = repo.path().parent().unwrap().to_owned();
+        let repo_dir = get_repo_dir(&repo);
 
         for (dotfile_name, dotfile) in dotfiles {
             let mut origin_path_buf = PathBuf::from(&repo_dir);
@@ -102,7 +102,7 @@ impl Manifest {
                 .map(|d| (*d).clone());
 
             let metadata =
-                dotfile.install(&repo_dir, maybe_metadata, &head_hash, skip_install_commands)?;
+                dotfile.install(&repo, maybe_metadata, skip_install_commands, force_install)?;
 
             aggregated_metadata
                 .data

@@ -1,9 +1,12 @@
-use crate::git::operations::{add_and_commit, checkout_ref, get_commit, has_changes, normal_merge};
+use crate::git::operations::{
+    add_and_commit, checkout_ref, get_commit, get_head_hash, get_repo_dir, normal_merge,
+};
 use crate::utils::run_command_vec;
 use crate::MANIFEST_PATH;
 use console::style;
 use git2::Repository;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -24,7 +27,6 @@ pub struct Dotfile {
 impl Dotfile {
     fn hash_pre_install(&self) -> String {
         if let Some(pre_install) = &self.pre_install {
-            // Unwrap is safe, hash will always be utf-8
             hash_command_vec(pre_install)
         } else {
             "".to_string()
@@ -33,7 +35,6 @@ impl Dotfile {
 
     fn hash_post_install(&self) -> String {
         if let Some(post_install) = &self.post_install {
-            // Unwrap is safe, hash will always be utf-8
             hash_command_vec(post_install)
         } else {
             "".to_string()
@@ -132,28 +133,103 @@ impl Dotfile {
         Ok(())
     }
 
+    /// Return whether this dotfile has changed since it was last synchronised
+    ///
+    /// This is performed by loading the current dotfile on the system, loading the dotfile as of
+    /// the specified commit and comparing them byte by byte.
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - The repository object
+    /// * `metadata` - The metadata associated to this dotfile
+    ///
+    /// # Returns
+    ///
+    /// A boolean signifying whether the dotfile on the local system differs to how it looked when
+    /// last synced
+    pub fn has_changed(
+        &self,
+        repo: &Repository,
+        metadata: &DotfileMetadata,
+    ) -> Result<bool, Box<dyn Error>> {
+        let head_ref = repo.head()?;
+        let head_ref_name = head_ref.name().unwrap();
+
+        let unexpanded_target_path = &self.target.to_string_lossy();
+        let target_path_str = shellexpand::tilde(unexpanded_target_path);
+        let target_path = Path::new(target_path_str.as_ref());
+
+        let local_file = fs::File::open(target_path)?;
+        checkout_ref(&repo, &metadata.commit_hash)?;
+
+        let repo_dir = get_repo_dir(&repo);
+        let repo_file = fs::File::open(&repo_dir.join(&self.file))?;
+        let mut repo_bytes = repo_file.bytes();
+
+        for local_byte in local_file.bytes() {
+            if let Some(repo_byte) = repo_bytes.next() {
+                if local_byte.ok() != repo_byte.ok() {
+                    checkout_ref(&repo, &head_ref_name)?;
+                    return Ok(true);
+                }
+            }
+        }
+        checkout_ref(&repo, &head_ref_name)?;
+        Ok(false)
+    }
+
+    /// Install the dotfile to the specified location.
+    ///
+    /// Refuse to do so if a local dotfile exists that has changes since the last sync, unless
+    /// `force` is true.
+    ///
+    /// # Arguments
+    ///
+    /// * `repo` - The repository object
+    /// * `maybe_metadata` - Optionally, this dotfiles metadata. If not passed, a naive install will
+    /// be performed, meaning:
+    ///   * No idempotency checks will be performed for pre/post steps
+    ///   * No check can be made as to whether the dotfile has changed since last sync so it will
+    ///   be overwritten no matter what
+    /// * `skip_install_steps` - Whether to skip pre/post install steps
+    /// * `force` - Whether to force the install, even if the local dotfile has changed since the
+    /// last sync
     pub fn install(
         &self,
-        repo_dir: &Path,
-        metadata: Option<DotfileMetadata>,
-        commit_hash: &str,
-        skip_install_commands: bool,
+        repo: &Repository,
+        maybe_metadata: Option<DotfileMetadata>,
+        skip_install_steps: bool,
+        force: bool,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        let pre_install_hash = if !skip_install_commands {
-            self.run_pre_install(&metadata)?
+        let commit_hash = get_head_hash(&repo)?;
+
+        if !force {
+            if let Some(ref metadata) = maybe_metadata {
+                if self.has_changed(&repo, &metadata)? {
+                    error!("Refusing to install dotfile. Changes have been made since last sync. \
+                            either run \"jtd sync\" for this dotfile or call install again with the \
+                            \"--force\" flag");
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        let pre_install_hash = if !skip_install_steps {
+            self.run_pre_install(&maybe_metadata)?
         } else {
             String::new()
         };
 
+        let repo_dir = get_repo_dir(&repo);
         self.install_dotfile(repo_dir)?;
 
-        let post_install_hash = if !skip_install_commands {
-            self.run_post_install(&metadata)?
+        let post_install_hash = if !skip_install_steps {
+            self.run_post_install(&maybe_metadata)?
         } else {
             String::new()
         };
 
-        let new_metadata = DotfileMetadata::new(commit_hash, pre_install_hash, post_install_hash);
+        let new_metadata = DotfileMetadata::new(&commit_hash, pre_install_hash, post_install_hash);
 
         Ok(new_metadata)
     }
@@ -165,9 +241,7 @@ impl Dotfile {
         config: &Config,
         metadata: Option<&DotfileMetadata>,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        // Safe to unwrap here, repo.path() points to .git folder. Path will always
-        // have a component after parent.
-        let mut target_path_buf = repo.path().parent().unwrap().to_owned();
+        let mut target_path_buf = get_repo_dir(&repo).to_owned();
         target_path_buf.push(&self.file);
         let target_path = target_path_buf.as_path();
 
@@ -177,18 +251,19 @@ impl Dotfile {
 
         if let Some(metadata) = metadata {
             let mut new_metadata = metadata.clone();
-            let parent_commit = get_commit(repo, &metadata.commit_hash).map_err(
-                |_| format!("Could not find last sync'd commit for {}, manifest is corrupt. Try fresh-installing \
-                            this dotfile or manually correcting the commit hash in {}", dotfile_name, MANIFEST_PATH))?;
 
-            let head_ref = repo.head()?;
-            let head_ref_name = head_ref.name().unwrap();
-            let merge_target_commit = repo.reference_to_annotated_commit(&head_ref)?;
+            if self.has_changed(&repo, &metadata)? {
+                let parent_commit = get_commit(repo, &metadata.commit_hash).map_err(
+                    |_| format!("Could not find last sync'd commit for {}, manifest is corrupt. Try fresh-installing \
+                                this dotfile or manually correcting the commit hash in {}", dotfile_name, MANIFEST_PATH))?;
 
-            checkout_ref(&repo, &parent_commit.id().to_string())?;
-            fs::copy(origin_path, target_path)?;
+                let head_ref = repo.head()?;
+                let head_ref_name = head_ref.name().unwrap();
+                let merge_target_commit = repo.reference_to_annotated_commit(&head_ref)?;
 
-            if has_changes(repo)? {
+                checkout_ref(&repo, &parent_commit.id().to_string())?;
+                fs::copy(origin_path, target_path)?;
+
                 let new_branch_name = format!("merge-{}-dotfile", dotfile_name);
                 let _new_branch = repo.branch(&new_branch_name, &parent_commit, true)?;
                 checkout_ref(&repo, &new_branch_name)?;
