@@ -5,7 +5,8 @@ use crate::utils::run_command_vec;
 use crate::MANIFEST_PATH;
 use console::style;
 use git2::Repository;
-use std::fs;
+use sha1::{Digest, Sha1};
+use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -156,26 +157,24 @@ impl Dotfile {
         let head_ref_name = head_ref.name().unwrap();
 
         let unexpanded_target_path = &self.target.to_string_lossy();
-        let target_path_str = shellexpand::tilde(unexpanded_target_path);
-        let target_path = Path::new(target_path_str.as_ref());
+        let local_dotfile_path = shellexpand::tilde(unexpanded_target_path).to_string();
+        let dotfile_contents = fs::read_to_string(local_dotfile_path)?;
+        let local_dotfile_hash = Sha1::digest(dotfile_contents.as_bytes());
 
-        let local_file = fs::File::open(target_path)?;
         checkout_ref(&repo, &metadata.commit_hash)?;
 
         let repo_dir = get_repo_dir(&repo);
-        let repo_file = fs::File::open(&repo_dir.join(&self.file))?;
-        let mut repo_bytes = repo_file.bytes();
+        let repo_dotfile_path = &repo_dir.join(&self.file);
+        let dotfile_contents = fs::read_to_string(repo_dotfile_path)?;
+        let repo_dotfile_hash = Sha1::digest(dotfile_contents.as_bytes());
 
-        for local_byte in local_file.bytes() {
-            if let Some(repo_byte) = repo_bytes.next() {
-                if local_byte.ok() != repo_byte.ok() {
-                    checkout_ref(&repo, &head_ref_name)?;
-                    return Ok(true);
-                }
-            }
+        if local_dotfile_hash != repo_dotfile_hash {
+            checkout_ref(&repo, &head_ref_name)?;
+            return Ok(true);
+        } else {
+            checkout_ref(&repo, &head_ref_name)?;
+            Ok(false)
         }
-        checkout_ref(&repo, &head_ref_name)?;
-        Ok(false)
     }
 
     /// Install the dotfile to the specified location.
@@ -307,7 +306,7 @@ impl Dotfile {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs::File, path::PathBuf};
+    use std::{fs::File, io::Write, path::PathBuf};
     use tempfile::tempdir;
 
     use super::*;
@@ -463,14 +462,59 @@ mod tests {
         let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
 
         // Create file in repo
+        let mut repo_filepath = repo_dir.path().to_owned();
+        repo_filepath.push(Path::new("dotfile"));
+        File::create(repo_filepath.to_owned()).expect("Could not create file in repo");
+
+        // Create dotfile "on the local system"
+        let mut local_filepath = dotfile_dir.path().to_owned();
+        local_filepath.push(Path::new("dotfile"));
+        File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+
+        let commit = add_and_commit(
+            &repo,
+            Some(vec![&repo_filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        let dotfile = Dotfile {
+            file: "dotfile".to_string(),
+            target: dotfile_dir.path().join("dotfile"),
+            pre_install: None,
+            post_install: None,
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: commit.id().to_string(),
+            pre_install_hash: "".to_string(),
+            post_install_hash: "".to_string(),
+        };
+
+        assert!(!dotfile.has_changed(&repo, &metadata).unwrap());
+    }
+
+    #[test]
+    fn test_has_changed_true() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        // Create file in repo
         let mut filepath = repo_dir.path().to_owned();
         filepath.push(Path::new("dotfile"));
         File::create(filepath.to_owned()).expect("Could not create file in repo");
 
-        // Create dotfile "on the local system"
+        // Create dotfile "on the local system" with different contents
         let mut filepath = dotfile_dir.path().to_owned();
         filepath.push(Path::new("dotfile"));
-        File::create(filepath.to_owned()).expect("Could not create file in tempdir");
+        let mut dotfile_file =
+            File::create(filepath.to_owned()).expect("Could not create file in tempdir");
+        dotfile_file
+            .write_all("This file has changes".as_bytes())
+            .unwrap();
 
         let commit = add_and_commit(
             &repo,
@@ -481,20 +525,19 @@ mod tests {
         )
         .expect("Failed to commit to repository");
 
-
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
             target: dotfile_dir.path().join("dotfile"),
             pre_install: None,
             post_install: None,
         };
-        
+
         let metadata = DotfileMetadata {
             commit_hash: commit.id().to_string(),
             pre_install_hash: "".to_string(),
             post_install_hash: "".to_string(),
         };
 
-        assert!(!dotfile.has_changed(&repo, &metadata).unwrap());
+        assert!(dotfile.has_changed(&repo, &metadata).unwrap());
     }
 }

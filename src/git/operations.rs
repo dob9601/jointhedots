@@ -314,7 +314,6 @@ mod tests {
     #[test]
     fn test_checkout_ref() {
         let repo_dir = tempdir().expect("Could not create temporary repo dir");
-        println!("{:?}", repo_dir);
         let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
 
         let first_commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
