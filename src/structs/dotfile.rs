@@ -6,8 +6,7 @@ use crate::MANIFEST_PATH;
 use console::style;
 use git2::Repository;
 use sha1::{Digest, Sha1};
-use std::fs::{self, File};
-use std::io::Read;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -539,5 +538,41 @@ mod tests {
         };
 
         assert!(dotfile.has_changed(&repo, &metadata).unwrap());
+    }
+
+    #[test]
+    fn test_install_no_metadata() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let target_path = dotfile_dir.path().join("dotfile");
+
+        // Create file in repo
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("dotfile"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+
+        let _commit = add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        let dotfile = Dotfile {
+            file: "dotfile".to_string(),
+            target: target_path.clone(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        dotfile
+            .install(&repo, None, true, true)
+            .expect("Failed to install dotfile");
+
+        assert!(Path::exists(&target_path));
     }
 }
