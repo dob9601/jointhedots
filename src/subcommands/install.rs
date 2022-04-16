@@ -18,5 +18,5 @@ pub fn install_subcommand_handler(args: InstallSubcommandArgs) -> Result<(), Box
 
     let manifest = Manifest::get(&manifest_path)?;
 
-    manifest.install(repo, args.all, args.target_dotfiles, args.force)
+    manifest.install(repo, args.all, args.target_dotfiles, args.force, args.trust)
 }

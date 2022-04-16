@@ -50,7 +50,7 @@ pub struct InstallSubcommandArgs {
     pub source: RepoHostName,
 
     #[clap(
-        help = "Whether to overwrite existing configs without prompt",
+        help = "Whether to overwrite unsynchronised configs without prompt",
         long = "force",
         short = 'f'
     )]

@@ -5,7 +5,7 @@ use console::style;
 use dialoguer::{Input, Password};
 use git2::build::CheckoutBuilder;
 use git2::{
-    AnnotatedCommit, Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature, Status,
+    AnnotatedCommit, Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature,
 };
 use git2::{Error as Git2Error, IndexAddOption, MergeOptions};
 use git2_credentials::{CredentialHandler, CredentialUI};
@@ -142,16 +142,6 @@ pub fn generate_signature() -> Result<Signature<'static>, Git2Error> {
     Signature::now("Jointhedots Sync", "jtd@danielobr.ie")
 }
 
-pub fn has_changes(repo: &Repository) -> Result<bool, Box<dyn Error>> {
-    Ok(repo
-        .statuses(None)?
-        .iter()
-        .map(|e| e.status())
-        .collect::<Vec<Status>>()
-        .len()
-        > 0)
-}
-
 pub fn add_all(repo: &Repository, file_paths: Option<Vec<&Path>>) -> Result<(), Box<dyn Error>> {
     let mut index = repo.index()?;
     if let Some(file_paths) = file_paths {
@@ -276,6 +266,12 @@ pub fn normal_merge<'a>(
     Ok(get_head(&repo)?)
 }
 
+pub fn get_repo_dir(repo: &Repository) -> &Path {
+    // Safe to unwrap here, repo.path() points to .git folder. Path will always
+    // have a component before .git
+    repo.path().parent().unwrap()
+}
+
 pub fn push(repo: &Repository) -> Result<(), Box<dyn Error>> {
     let mut remote = repo.find_remote("origin")?;
 
@@ -318,7 +314,6 @@ mod tests {
     #[test]
     fn test_checkout_ref() {
         let repo_dir = tempdir().expect("Could not create temporary repo dir");
-        println!("{:?}", repo_dir);
         let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
 
         let first_commit = add_and_commit(&repo, None, "", Some(vec![]), Some("HEAD")).unwrap();
@@ -446,7 +441,7 @@ mod tests {
         )
         .expect("Failed to create 1st commit");
 
-        let second_commit = add_and_commit(
+        let _second_commit = add_and_commit(
             &repo,
             Some(vec![]),
             "2nd commit",
@@ -459,7 +454,7 @@ mod tests {
         let head_ref_name = head_ref.name().unwrap();
         let annotated_main_head = repo.reference_to_annotated_commit(&head_ref).unwrap();
 
-        let branch = repo
+        let _branch = repo
             .branch("branch", &first_commit, true)
             .expect("Failed to create branch");
         checkout_ref(&repo, "branch").expect("Failed to checkout new branch");
@@ -468,10 +463,12 @@ mod tests {
             .reference_to_annotated_commit(&repo.head().unwrap())
             .unwrap();
 
-        normal_merge(&repo, &annotated_branch_head, &annotated_branch_head)
+        checkout_ref(&repo, head_ref_name).expect("Failed to checkout new branch");
+
+        normal_merge(&repo, &annotated_main_head, &annotated_branch_head)
             .expect("Failed to merge branch");
 
-        // TODO: Some assertion on the repo state after this
+        // FIXME: Some assertion on the repo state after this
     }
 
     #[test]
@@ -480,25 +477,5 @@ mod tests {
 
         assert_eq!(signature.email().unwrap(), "jtd@danielobr.ie");
         assert_eq!(signature.name().unwrap(), "Jointhedots Sync");
-    }
-
-    #[test]
-    fn test_has_changes_true() {
-        let repo_dir = tempdir().unwrap();
-        let repo = Repository::init(&repo_dir).unwrap();
-
-        let mut filepath = repo_dir.path().to_owned();
-        filepath.push(Path::new("file.rs"));
-        File::create(filepath).expect("Could not create file in repo");
-
-        assert!(has_changes(&repo).unwrap());
-    }
-
-    #[test]
-    fn test_has_changes_false() {
-        let repo_dir = tempdir().unwrap();
-        let repo = Repository::init(&repo_dir).unwrap();
-
-        assert!(!has_changes(&repo).unwrap());
     }
 }
