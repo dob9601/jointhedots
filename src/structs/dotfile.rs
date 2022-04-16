@@ -307,7 +307,8 @@ impl Dotfile {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{fs::File, path::PathBuf};
+    use tempfile::tempdir;
 
     use super::*;
 
@@ -453,5 +454,47 @@ mod tests {
         };
 
         assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+    }
+
+    #[test]
+    fn test_has_changed_false() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        // Create file in repo
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("dotfile"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+
+        // Create dotfile "on the local system"
+        let mut filepath = dotfile_dir.path().to_owned();
+        filepath.push(Path::new("dotfile"));
+        File::create(filepath.to_owned()).expect("Could not create file in tempdir");
+
+        let commit = add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+
+        let dotfile = Dotfile {
+            file: "dotfile".to_string(),
+            target: dotfile_dir.path().join("dotfile"),
+            pre_install: None,
+            post_install: None,
+        };
+        
+        let metadata = DotfileMetadata {
+            commit_hash: commit.id().to_string(),
+            pre_install_hash: "".to_string(),
+            post_install_hash: "".to_string(),
+        };
+
+        assert!(!dotfile.has_changed(&repo, &metadata).unwrap());
     }
 }
