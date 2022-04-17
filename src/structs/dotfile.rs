@@ -307,6 +307,8 @@ mod tests {
     use std::{fs::File, io::Write, path::PathBuf};
     use tempfile::tempdir;
 
+    use crate::git::operations::get_head;
+
     use super::*;
 
     #[test]
@@ -765,6 +767,59 @@ mod tests {
         assert_eq!(
             fs::read_to_string(filepath).unwrap(),
             "These are local changes on the system"
+        );
+    }
+
+    #[test]
+    fn test_sync_with_metadata_skip_if_no_changes() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let target_path = dotfile_dir.path().join("dotfile");
+
+        // Create file in repo
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("dotfile"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+        let _commit = add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        // Create dotfile "on the local system"
+        let mut local_filepath = dotfile_dir.path().to_owned();
+        local_filepath.push(Path::new("dotfile"));
+        File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+
+        let dotfile = Dotfile {
+            file: "dotfile".to_string(),
+            target: target_path.clone(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: _commit.id().to_string(),
+            pre_install_hash: "".to_string(),
+            post_install_hash: "".to_string(),
+        };
+
+        let config = Config::default();
+
+        dotfile
+            .sync(&repo, "dotfile", &config, Some(&metadata))
+            .expect("Failed to sync dotfile");
+
+        // Check that the head commit of the repo is still the initial commit - i.e. no changes
+        // have been committed
+        assert_eq!(
+            _commit.id(),
+            get_head(&repo).unwrap().id(),
         );
     }
 }
