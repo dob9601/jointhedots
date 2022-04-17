@@ -575,4 +575,51 @@ mod tests {
 
         assert!(Path::exists(&target_path));
     }
+
+    #[test]
+    fn test_install_commands() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let target_path = dotfile_dir.path().join("dotfile");
+
+        let target_touch_pre_install = dotfile_dir.path().join("pre_install");
+        let target_touch_post_install = dotfile_dir.path().join("post_install");
+
+        // Create file in repo
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("dotfile"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+
+        let _commit = add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        let dotfile = Dotfile {
+            file: "dotfile".to_string(),
+            target: target_path.clone(),
+            pre_install: Some(vec![format!(
+                "touch {}",
+                target_touch_pre_install.to_string_lossy()
+            )]),
+            post_install: Some(vec![format!(
+                "touch {}",
+                target_touch_post_install.to_string_lossy()
+            )]),
+        };
+
+        dotfile
+            .install(&repo, None, false, true)
+            .expect("Failed to install dotfile");
+
+        assert!(Path::exists(&target_path));
+        assert!(Path::exists(&target_touch_pre_install));
+        assert!(Path::exists(&target_touch_post_install));
+    }
 }
