@@ -204,10 +204,9 @@ impl Dotfile {
         if !force {
             if let Some(ref metadata) = maybe_metadata {
                 if self.has_changed(&repo, &metadata)? {
-                    error!("Refusing to install dotfile. Changes have been made since last sync. \
+                    return Err("Refusing to install dotfile. Changes have been made since last sync. \
                             either run \"jtd sync\" for this dotfile or call install again with the \
-                            \"--force\" flag");
-                    std::process::exit(1);
+                            \"--force\" flag".into());
                 }
             }
         }
@@ -574,5 +573,98 @@ mod tests {
             .expect("Failed to install dotfile");
 
         assert!(Path::exists(&target_path));
+    }
+
+    #[test]
+    fn test_install_commands() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let target_path = dotfile_dir.path().join("dotfile");
+
+        let target_touch_pre_install = dotfile_dir.path().join("pre_install");
+        let target_touch_post_install = dotfile_dir.path().join("post_install");
+
+        // Create file in repo
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("dotfile"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+
+        let _commit = add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        let dotfile = Dotfile {
+            file: "dotfile".to_string(),
+            target: target_path.clone(),
+            pre_install: Some(vec![format!(
+                "touch {}",
+                target_touch_pre_install.to_string_lossy()
+            )]),
+            post_install: Some(vec![format!(
+                "touch {}",
+                target_touch_post_install.to_string_lossy()
+            )]),
+        };
+
+        dotfile
+            .install(&repo, None, false, true)
+            .expect("Failed to install dotfile");
+
+        assert!(Path::exists(&target_path));
+        assert!(Path::exists(&target_touch_pre_install));
+        assert!(Path::exists(&target_touch_post_install));
+    }
+
+    #[test]
+    fn test_abort_install_if_local_changes() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let target_path = dotfile_dir.path().join("dotfile");
+
+        // Create file in repo
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("dotfile"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+
+        // Create dotfile "on the local system"
+        let mut local_filepath = dotfile_dir.path().to_owned();
+        local_filepath.push(Path::new("dotfile"));
+        let mut file =
+            File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+        file.write_all(b"These are local changes on the system")
+            .expect("Failed to write to dotfile");
+
+        let _commit = add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        let dotfile = Dotfile {
+            file: "dotfile".to_string(),
+            target: target_path.clone(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        let metadata = DotfileMetadata {
+            commit_hash: _commit.id().to_string(),
+            pre_install_hash: "".to_string(),
+            post_install_hash: "".to_string(),
+        };
+
+        assert!(dotfile.install(&repo, Some(metadata), true, false).is_err());
     }
 }
