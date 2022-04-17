@@ -667,4 +667,51 @@ mod tests {
 
         assert!(dotfile.install(&repo, Some(metadata), true, false).is_err());
     }
+
+    #[test]
+    fn test_sync_naive() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let target_path = dotfile_dir.path().join("dotfile");
+
+        // Create file in repo
+        let mut filepath = repo_dir.path().to_owned();
+        filepath.push(Path::new("dotfile"));
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+        let _commit = add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        // Create dotfile "on the local system"
+        let mut local_filepath = dotfile_dir.path().to_owned();
+        local_filepath.push(Path::new("dotfile"));
+        let mut file =
+            File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+        file.write_all(b"These are local changes on the system")
+            .expect("Failed to write to dotfile");
+
+        let dotfile = Dotfile {
+            file: "dotfile".to_string(),
+            target: target_path.clone(),
+            pre_install: None,
+            post_install: None,
+        };
+
+        let config = Config::default();
+
+        dotfile
+            .sync(&repo, "dotfile", &config, None)
+            .expect("Failed to sync dotfile");
+        assert_eq!(
+            fs::read_to_string(filepath).unwrap(),
+            "These are local changes on the system"
+        );
+    }
 }
