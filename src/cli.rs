@@ -124,6 +124,13 @@ pub struct SyncSubcommandArgs {
         short = 'c'
     )]
     pub commit_msg: Option<String>,
+
+    #[clap(
+        help = "Whether to use naive sync. If not present, git-based sync will be used unless metadata \
+        is unavailable in which case you will be prompted as to whether you wish to fallback to naive sync.",
+        long = "naive"
+    )]
+    pub naive: bool,
 }
 
 #[derive(clap::Args, Debug)]

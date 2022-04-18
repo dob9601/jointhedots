@@ -36,7 +36,7 @@ SUBCOMMANDS:
 
 jointhedots works by reading a "jtd.yaml" manifest file located within your dotfile repository. The manifest contains a mapping of file to installed location (amongst other things), allowing for JTD to automatically install configurations. `pre_install` and `post_install` commands can also be specified, allowing for additional control over installation.
 
-jtd also allows for pushing your dotfiles back to the remote repo and resolves merge conflicts via git.
+jtd also allows for pushing your dotfiles back to the remote repo and resolves merges via git. It's also possible to avoid all prompts for input. This, combined with the fact that jtd is deterministic, makes it very suitable for for use in scripts.
 
 These install steps are designed so that they will run once on your first install, store a hash of the steps run and then only run if the hash differs (i.e. you have modified your config with new install steps).
 
@@ -56,8 +56,8 @@ These install steps are designed so that they will run once on your first instal
 | Support for non-GitHub/GitLab repos                                                  |             |                    |
 | Ability to manually specify commit message for JTD sync                              |      ✔      |                    |
 | More detailed default commit messages for JTD sync (list the changed files)          |      ✔      |                    |
-| Abort syncing if no changes are present in files                                     |             |                    |
-| Don't allow `jtd install` if dotfiles are behind remote main (prompt user to sync)   |             |                    |
+| Abort syncing if no changes are present in files                                     |      ✔      |                    |
+| Don't allow `jtd install` if dotfiles are behind remote main (prompt user to sync)   |      ✔      |                    |
 
 ## Installation
 

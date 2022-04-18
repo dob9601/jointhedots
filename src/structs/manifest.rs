@@ -173,13 +173,14 @@ impl Manifest {
         target_dotfiles: Vec<String>,
         commit_msg: Option<&str>,
         aggregated_metadata: Option<AggregatedDotfileMetadata>,
+        use_naive_sync: bool,
     ) -> Result<(), Box<dyn Error>> {
         let theme = get_theme();
 
         let dotfiles = self.get_target_dotfiles(target_dotfiles, sync_all);
         let mut commit_hashes = vec![];
 
-        if aggregated_metadata.is_none() {
+        if aggregated_metadata.is_none() && !use_naive_sync {
             println!(
                 "{}",
                 style(
@@ -280,7 +281,7 @@ impl IntoIterator for Manifest {
 #[cfg(test)]
 mod tests {
     use std::{
-        fs::File,
+        fs::{read_to_string, File},
         io::Write,
         path::{Path, PathBuf},
     };
@@ -343,5 +344,52 @@ kitty:
             .install(&repo, true, vec![], true, false)
             .expect("Failed to install manifest");
         assert!(Path::exists(&target_path));
+    }
+
+    #[test]
+    fn test_manifest_sync() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let target_path = dotfile_dir.path().join("dotfile");
+
+        // Create file in repo
+        let repo_dotfile_path = repo_dir.path().join("dotfile");
+        File::create(repo_dotfile_path.to_owned()).expect("Could not create file in repo");
+        let _commit = add_and_commit(
+            &repo,
+            Some(vec![&repo_dotfile_path]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        // Create dotfile "on the local system"
+        let mut file =
+            File::create(target_path.to_owned()).expect("Could not create file in tempdir");
+        file.write_all(b"These are local changes on the system")
+            .expect("Failed to write to dotfile");
+
+        let manifest: Manifest = serde_yaml::from_str(
+            &SAMPLE_MANIFEST.replace("~/some/path/here", &target_path.to_string_lossy()),
+        )
+        .unwrap();
+
+        let err = manifest
+            .sync(&repo, true, vec![], None, None, true)
+            .unwrap_err();
+
+        // FIXME: This is a very dodgy test, maybe setup a mock repo for pushing to?
+        assert_eq!(
+            err.to_string(),
+            "remote 'origin' does not exist; class=Config (7); code=NotFound (-3)"
+        );
+
+        assert_eq!(
+            read_to_string(&repo_dotfile_path).unwrap(),
+            "These are local changes on the system"
+        );
     }
 }
