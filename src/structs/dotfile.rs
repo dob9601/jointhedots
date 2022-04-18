@@ -461,13 +461,11 @@ mod tests {
         let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
 
         // Create file in repo
-        let mut repo_filepath = repo_dir.path().to_owned();
-        repo_filepath.push(Path::new("dotfile"));
+        let repo_filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(repo_filepath.to_owned()).expect("Could not create file in repo");
 
         // Create dotfile "on the local system"
-        let mut local_filepath = dotfile_dir.path().to_owned();
-        local_filepath.push(Path::new("dotfile"));
+        let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
 
         let commit = add_and_commit(
@@ -502,13 +500,11 @@ mod tests {
         let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
 
         // Create file in repo
-        let mut filepath = repo_dir.path().to_owned();
-        filepath.push(Path::new("dotfile"));
+        let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
 
         // Create dotfile "on the local system" with different contents
-        let mut filepath = dotfile_dir.path().to_owned();
-        filepath.push(Path::new("dotfile"));
+        let filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut dotfile_file =
             File::create(filepath.to_owned()).expect("Could not create file in tempdir");
         dotfile_file
@@ -549,8 +545,7 @@ mod tests {
         let target_path = dotfile_dir.path().join("dotfile");
 
         // Create file in repo
-        let mut filepath = repo_dir.path().to_owned();
-        filepath.push(Path::new("dotfile"));
+        let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
 
         let _commit = add_and_commit(
@@ -588,8 +583,7 @@ mod tests {
         let target_touch_post_install = dotfile_dir.path().join("post_install");
 
         // Create file in repo
-        let mut filepath = repo_dir.path().to_owned();
-        filepath.push(Path::new("dotfile"));
+        let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
 
         let _commit = add_and_commit(
@@ -632,13 +626,11 @@ mod tests {
         let target_path = dotfile_dir.path().join("dotfile");
 
         // Create file in repo
-        let mut filepath = repo_dir.path().to_owned();
-        filepath.push(Path::new("dotfile"));
+        let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
 
         // Create dotfile "on the local system"
-        let mut local_filepath = dotfile_dir.path().to_owned();
-        local_filepath.push(Path::new("dotfile"));
+        let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
             File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
@@ -678,8 +670,7 @@ mod tests {
         let target_path = dotfile_dir.path().join("dotfile");
 
         // Create file in repo
-        let mut filepath = repo_dir.path().to_owned();
-        filepath.push(Path::new("dotfile"));
+        let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
         let _commit = add_and_commit(
             &repo,
@@ -691,8 +682,7 @@ mod tests {
         .expect("Failed to commit to repository");
 
         // Create dotfile "on the local system"
-        let mut local_filepath = dotfile_dir.path().to_owned();
-        local_filepath.push(Path::new("dotfile"));
+        let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
             File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
@@ -725,8 +715,7 @@ mod tests {
         let target_path = dotfile_dir.path().join("dotfile");
 
         // Create file in repo
-        let mut filepath = repo_dir.path().to_owned();
-        filepath.push(Path::new("dotfile"));
+        let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
         let _commit = add_and_commit(
             &repo,
@@ -738,8 +727,7 @@ mod tests {
         .expect("Failed to commit to repository");
 
         // Create dotfile "on the local system"
-        let mut local_filepath = dotfile_dir.path().to_owned();
-        local_filepath.push(Path::new("dotfile"));
+        let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
             File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
@@ -778,8 +766,7 @@ mod tests {
         let target_path = dotfile_dir.path().join("dotfile");
 
         // Create file in repo
-        let mut filepath = repo_dir.path().to_owned();
-        filepath.push(Path::new("dotfile"));
+        let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
         let _commit = add_and_commit(
             &repo,
@@ -791,8 +778,7 @@ mod tests {
         .expect("Failed to commit to repository");
 
         // Create dotfile "on the local system"
-        let mut local_filepath = dotfile_dir.path().to_owned();
-        local_filepath.push(Path::new("dotfile"));
+        let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
 
         let dotfile = Dotfile {

@@ -25,5 +25,6 @@ pub fn sync_subcommand_handler(args: SyncSubcommandArgs) -> Result<(), Box<dyn E
         args.target_dotfiles,
         args.commit_msg.as_deref(),
         AggregatedDotfileMetadata::get()?,
+        args.naive,
     )
 }
