@@ -43,7 +43,7 @@ impl Manifest {
 
     pub fn install(
         &self,
-        repo: Repository,
+        repo: &Repository,
         install_all: bool,
         target_dotfiles: Vec<String>,
         force_install: bool,
@@ -290,8 +290,8 @@ mod tests {
 
     const SAMPLE_MANIFEST: &str = r"
 kitty:
-  file: kitty.conf
-  target: ~/.config/kitty/kitty.conf
+  file: dotfile
+  target: ~/some/path/here
         ";
 
     #[test]
@@ -305,12 +305,43 @@ kitty:
         let manifest = Manifest::get(&path).unwrap();
 
         let kitty_dotfile = Dotfile {
-            file: "kitty.conf".to_string(),
-            target: PathBuf::from("~/.config/kitty/kitty.conf"),
+            file: "dotfile".to_string(),
+            target: PathBuf::from("~/some/path/here"),
             pre_install: None,
             post_install: None,
         };
 
         assert_eq!(manifest.data["kitty"], kitty_dotfile);
+    }
+
+    #[test]
+    fn test_manifest_install() {
+        let repo_dir = tempdir().expect("Could not create temporary repo dir");
+        let repo = Repository::init(&repo_dir).expect("Could not initialise repository");
+
+        let dotfile_dir = tempdir().expect("Could not create temporary dotfile dir");
+        let target_path = dotfile_dir.path().join("dotfile");
+
+        // Create file in repo
+        let filepath = repo_dir.path().to_owned().join("dotfile");
+        File::create(filepath.to_owned()).expect("Could not create file in repo");
+        let _commit = add_and_commit(
+            &repo,
+            Some(vec![&filepath]),
+            "commit message",
+            Some(vec![]),
+            Some("HEAD"),
+        )
+        .expect("Failed to commit to repository");
+
+        let manifest: Manifest = serde_yaml::from_str(
+            &SAMPLE_MANIFEST.replace("~/some/path/here", &target_path.to_string_lossy()),
+        )
+        .unwrap();
+
+        manifest
+            .install(&repo, true, vec![], true, false)
+            .expect("Failed to install manifest");
+        assert!(Path::exists(&target_path));
     }
 }
