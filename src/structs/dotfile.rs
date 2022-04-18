@@ -200,7 +200,6 @@ impl Dotfile {
         force: bool,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
         let commit_hash = get_head_hash(&repo)?;
-
         if !force {
             if let Some(ref metadata) = maybe_metadata {
                 if self.has_changed(&repo, &metadata)? {
@@ -817,9 +816,6 @@ mod tests {
 
         // Check that the head commit of the repo is still the initial commit - i.e. no changes
         // have been committed
-        assert_eq!(
-            _commit.id(),
-            get_head(&repo).unwrap().id(),
-        );
+        assert_eq!(_commit.id(), get_head(&repo).unwrap().id());
     }
 }
