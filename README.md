@@ -56,8 +56,8 @@ These install steps are designed so that they will run once on your first instal
 | Support for non-GitHub/GitLab repos                                                  |             |                    |
 | Ability to manually specify commit message for JTD sync                              |      ✔      |                    |
 | More detailed default commit messages for JTD sync (list the changed files)          |      ✔      |                    |
-| Abort syncing if no changes are present in files                                     |             |                    |
-| Don't allow `jtd install` if dotfiles are behind remote main (prompt user to sync)   |             |                    |
+| Abort syncing if no changes are present in files                                     |      ✔      |                    |
+| Don't allow `jtd install` if dotfiles are behind remote main (prompt user to sync)   |      ✔      |                    |
 
 ## Installation
 
