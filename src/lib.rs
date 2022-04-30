@@ -16,8 +16,10 @@ pub mod subcommands {
     mod install;
     mod interactive;
     mod sync;
+    mod diff;
 
     pub use install::install_subcommand_handler;
     pub use interactive::interactive_subcommand_handler;
     pub use sync::sync_subcommand_handler;
+    pub use diff::diff_subcommand_handler;
 }

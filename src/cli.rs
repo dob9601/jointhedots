@@ -8,6 +8,7 @@ pub enum JoinTheDots {
     Install(InstallSubcommandArgs),
     Sync(SyncSubcommandArgs),
     Interactive(InteractiveSubcommandArgs),
+    Diff(DiffSubcommandArgs),
 }
 
 #[derive(clap::Args, Debug)]
@@ -136,3 +137,42 @@ pub struct SyncSubcommandArgs {
 #[derive(clap::Args, Debug)]
 #[clap(about = "Interactively install dotfiles", version)]
 pub struct InteractiveSubcommandArgs {}
+
+#[derive(clap::Args, Debug)]
+#[clap(about = "Interactively install dotfiles", version)]
+pub struct DiffSubcommandArgs {
+    #[clap(help = "The location of the repository in the form USERNAME/REPONAME")]
+    pub repository: String,
+
+    #[clap(
+        arg_enum,
+        long = "method",
+        short = 'm',
+        help = "The method to use for cloning/pushing the repository",
+        default_value = "ssh"
+    )]
+    pub method: ConnectionMethod,
+
+    #[clap(
+        help = "The name of the dotfile to diff.",
+    )]
+    pub target_dotfile: String,
+
+    #[clap(
+        arg_enum,
+        default_value = "GitHub",
+        help = "Whether to source the repo from GitHub or GitLab",
+        long = "source",
+        short = 's',
+        ignore_case = true
+    )]
+    pub source: RepoHostName,
+
+    #[clap(
+        long = "manifest",
+        short = 'n',
+        help = "The manifest to use in the repository",
+        default_value = "jtd.yaml"
+    )]
+    pub manifest: String,
+}

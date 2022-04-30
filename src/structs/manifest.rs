@@ -266,6 +266,10 @@ impl Manifest {
         aggregated_metadata.save()?;
         Ok(())
     }
+
+    pub fn diff(&self, repo: &Repository, target_dotfile: &str) -> Result<(), Box<dyn Error>> {
+        todo!()
+    }
 }
 
 impl IntoIterator for Manifest {

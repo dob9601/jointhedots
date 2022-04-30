@@ -80,7 +80,7 @@ JTDs default behaviour can be overridden using the `.config` key. Currently supp
 | Configuration key | Usage                                                    | Default               |
 | :---              | :---                                                     |  :---:                |
 | `commit_prefix`   | String to prefix commits with                            | <code>🔁&nbsp;</code> |
-| `squash_commits`  | Whether to squash commits when syncing multiple dotfiles | `true`               |
+| `squash_commits`  | Whether to squash commits when syncing multiple dotfiles | `true`                |
 
 
 ## Example Manifest
