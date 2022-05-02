@@ -175,7 +175,7 @@ pub fn add_and_commit<'a>(
     maybe_parents: Option<Vec<&Commit>>,
     update_ref: Option<&str>,
 ) -> Result<Commit<'a>, Box<dyn Error>> {
-    add_all(&repo, file_paths)?;
+    add_all(repo, file_paths)?;
 
     let mut index = repo.index()?;
     let oid = index.write_tree()?;
@@ -264,7 +264,7 @@ pub fn normal_merge<'a>(
         ],
     )?;
     repo.cleanup_state()?;
-    Ok(get_head(&repo)?)
+    get_head(repo)
 }
 
 pub fn colorize_and_format_diff_line<'a>(line: &'a DiffLine) -> Option<StyledObject<&'a str>> {
@@ -472,7 +472,7 @@ mod tests {
 
         let head_ref = &repo.head().unwrap();
         let head_ref_name = head_ref.name().unwrap();
-        let annotated_main_head = repo.reference_to_annotated_commit(&head_ref).unwrap();
+        let annotated_main_head = repo.reference_to_annotated_commit(head_ref).unwrap();
 
         let _branch = repo
             .branch("branch", &first_commit, true)
