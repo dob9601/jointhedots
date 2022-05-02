@@ -149,7 +149,7 @@ pub struct DiffSubcommandArgs {
         long = "method",
         short = 'm',
         help = "The method to use for cloning/pushing the repository",
-        default_value = "ssh"
+        default_value = "https"
     )]
     pub method: ConnectionMethod,
 

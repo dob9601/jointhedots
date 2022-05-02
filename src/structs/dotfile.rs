@@ -1,6 +1,4 @@
-use crate::git::operations::{
-    add_and_commit, checkout_ref, get_commit, get_head_hash, get_repo_dir, normal_merge,
-};
+use crate::git::operations::{add_and_commit, checkout_ref, colorize_diff_line, get_commit, get_head_hash, get_repo_dir, normal_merge};
 use crate::utils::run_command_vec;
 use crate::MANIFEST_PATH;
 use console::style;
@@ -237,9 +235,7 @@ impl Dotfile {
         config: &Config,
         metadata: Option<&DotfileMetadata>,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        let mut target_path_buf = get_repo_dir(&repo).to_owned();
-        target_path_buf.push(&self.file);
-        let target_path = target_path_buf.as_path();
+        let target_path = get_repo_dir(&repo).join(&self.file);
 
         let origin_path_unexpanded = &self.target.to_string_lossy();
         let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
@@ -298,6 +294,28 @@ impl Dotfile {
                 self.hash_post_install(),
             ))
         }
+    }
+
+    pub fn diff(&self, repo: &Repository) -> Result<(), Box<dyn Error>> {
+        let target_path = get_repo_dir(&repo).join(&self.file);
+
+        let origin_path_unexpanded = &self.target.to_string_lossy();
+        let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
+        let origin_path = Path::new(origin_path_str.as_ref());
+
+        fs::copy(origin_path, target_path)?;
+
+        let diff = repo.diff_index_to_workdir(None, None)?;
+        diff.print(git2::DiffFormat::Patch, |_, _, line| {
+            let colorized_line = colorize_diff_line(&line);
+            if let Some(line) = colorized_line {
+                print!("{}", line);
+            } else {
+                print!("{}", style("--- FAILED TO PRINT DIFF LINE ---").red().bold());
+            }
+            true
+        })?;
+        Ok(())
     }
 }
 
