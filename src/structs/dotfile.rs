@@ -1,4 +1,7 @@
-use crate::git::operations::{add_and_commit, checkout_ref, colorize_and_format_diff_line, get_commit, get_head_hash, get_repo_dir, normal_merge};
+use crate::git::operations::{
+    add_and_commit, checkout_ref, colorize_and_format_diff_line, get_commit, get_head_hash,
+    get_repo_dir, normal_merge,
+};
 use crate::utils::run_command_vec;
 use crate::MANIFEST_PATH;
 use console::style;
@@ -309,7 +312,7 @@ impl Dotfile {
 
         if diff.deltas().count() == 0 {
             warn!("No diffs found for {} dotfile", dotfile_name);
-            return Ok(())
+            return Ok(());
         } else {
             info!("Showing diffs for {} dotfile", dotfile_name);
         }
@@ -317,14 +320,17 @@ impl Dotfile {
         diff.print(git2::DiffFormat::Patch, |_, _, line| {
             // Skip diff headers. We only diff singular files, they're superfluous
             if line.origin() == 'F' {
-                return true
+                return true;
             }
 
             let colorized_line = colorize_and_format_diff_line(&line);
             if let Some(line) = colorized_line {
                 print!("{}", line);
             } else {
-                print!("{}", style("--- FAILED TO PRINT DIFF LINE ---").red().bold());
+                print!(
+                    "{}",
+                    style("--- FAILED TO PRINT DIFF LINE ---").red().bold()
+                );
             }
             true
         })?;

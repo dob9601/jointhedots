@@ -153,9 +153,7 @@ pub struct DiffSubcommandArgs {
     )]
     pub method: ConnectionMethod,
 
-    #[clap(
-        help = "The name of the dotfile to diff.",
-    )]
+    #[clap(help = "The name of the dotfile to diff.")]
     pub target_dotfile: String,
 
     #[clap(

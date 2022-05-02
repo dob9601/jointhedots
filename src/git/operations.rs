@@ -279,7 +279,7 @@ pub fn colorize_and_format_diff_line<'a>(line: &'a DiffLine) -> Option<StyledObj
             '<' => Some(styled_diff.red()),
             'F' => Some(styled_diff.bold()),
             'H' => Some(styled_diff.cyan()),
-            _ => Some(styled_diff)
+            _ => Some(styled_diff),
         }
     } else {
         None
