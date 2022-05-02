@@ -267,9 +267,9 @@ impl Manifest {
         Ok(())
     }
 
-    pub fn diff(&self, repo: &Repository, target_dotfile: &str) -> Result<(), Box<dyn Error>> {
-        let dotfile = self.data.get(target_dotfile).ok_or_else(|| format!("Target dotfile \"{}\" was not found in the manifest", target_dotfile))?;
-        dotfile.diff(&repo)
+    pub fn diff(&self, repo: &Repository, dotfile_name: &str) -> Result<(), Box<dyn Error>> {
+        let dotfile = self.data.get(dotfile_name).ok_or_else(|| format!("Target dotfile \"{}\" was not found in the manifest", dotfile_name))?;
+        dotfile.diff(&repo, dotfile_name)
     }
 }
 

@@ -267,7 +267,7 @@ pub fn normal_merge<'a>(
     Ok(get_head(&repo)?)
 }
 
-pub fn colorize_diff_line<'a>(line: &'a DiffLine) -> Option<StyledObject<&'a str>> {
+pub fn colorize_and_format_diff_line<'a>(line: &'a DiffLine) -> Option<StyledObject<&'a str>> {
     let decoded_diff = std::str::from_utf8(line.content());
 
     if let Ok(diff) = decoded_diff {

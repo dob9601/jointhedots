@@ -1,4 +1,4 @@
-use crate::git::operations::{add_and_commit, checkout_ref, colorize_diff_line, get_commit, get_head_hash, get_repo_dir, normal_merge};
+use crate::git::operations::{add_and_commit, checkout_ref, colorize_and_format_diff_line, get_commit, get_head_hash, get_repo_dir, normal_merge};
 use crate::utils::run_command_vec;
 use crate::MANIFEST_PATH;
 use console::style;
@@ -296,7 +296,7 @@ impl Dotfile {
         }
     }
 
-    pub fn diff(&self, repo: &Repository) -> Result<(), Box<dyn Error>> {
+    pub fn diff(&self, repo: &Repository, dotfile_name: &str) -> Result<(), Box<dyn Error>> {
         let target_path = get_repo_dir(&repo).join(&self.file);
 
         let origin_path_unexpanded = &self.target.to_string_lossy();
@@ -306,8 +306,21 @@ impl Dotfile {
         fs::copy(origin_path, target_path)?;
 
         let diff = repo.diff_index_to_workdir(None, None)?;
+
+        if diff.deltas().count() == 0 {
+            warn!("No diffs found for {} dotfile", dotfile_name);
+            return Ok(())
+        } else {
+            info!("Showing diffs for {} dotfile", dotfile_name);
+        }
+
         diff.print(git2::DiffFormat::Patch, |_, _, line| {
-            let colorized_line = colorize_diff_line(&line);
+            // Skip diff headers. We only diff singular files, they're superfluous
+            if line.origin() == 'F' {
+                return true
+            }
+
+            let colorized_line = colorize_and_format_diff_line(&line);
             if let Some(line) = colorized_line {
                 print!("{}", line);
             } else {
