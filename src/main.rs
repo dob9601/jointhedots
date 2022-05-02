@@ -7,6 +7,7 @@ fn main() {
     let result = match JoinTheDots::parse() {
         JoinTheDots::Sync(args) => subcommands::sync_subcommand_handler(args),
         JoinTheDots::Install(args) => subcommands::install_subcommand_handler(args),
+        JoinTheDots::Diff(args) => subcommands::diff_subcommand_handler(args),
         JoinTheDots::Interactive(_) => subcommands::interactive_subcommand_handler(),
     };
     if let Err(error) = result {

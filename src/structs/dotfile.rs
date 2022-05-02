@@ -1,5 +1,6 @@
 use crate::git::operations::{
-    add_and_commit, checkout_ref, get_commit, get_head_hash, get_repo_dir, normal_merge,
+    add_and_commit, checkout_ref, colorize_and_format_diff_line, get_commit, get_head_hash,
+    get_repo_dir, normal_merge,
 };
 use crate::utils::run_command_vec;
 use crate::MANIFEST_PATH;
@@ -160,18 +161,18 @@ impl Dotfile {
         let dotfile_contents = fs::read_to_string(local_dotfile_path)?;
         let local_dotfile_hash = Sha1::digest(dotfile_contents.as_bytes());
 
-        checkout_ref(&repo, &metadata.commit_hash)?;
+        checkout_ref(repo, &metadata.commit_hash)?;
 
-        let repo_dir = get_repo_dir(&repo);
+        let repo_dir = get_repo_dir(repo);
         let repo_dotfile_path = &repo_dir.join(&self.file);
         let dotfile_contents = fs::read_to_string(repo_dotfile_path)?;
         let repo_dotfile_hash = Sha1::digest(dotfile_contents.as_bytes());
 
         if local_dotfile_hash != repo_dotfile_hash {
-            checkout_ref(&repo, &head_ref_name)?;
-            return Ok(true);
+            checkout_ref(repo, head_ref_name)?;
+            Ok(true)
         } else {
-            checkout_ref(&repo, &head_ref_name)?;
+            checkout_ref(repo, head_ref_name)?;
             Ok(false)
         }
     }
@@ -199,10 +200,10 @@ impl Dotfile {
         skip_install_steps: bool,
         force: bool,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        let commit_hash = get_head_hash(&repo)?;
+        let commit_hash = get_head_hash(repo)?;
         if !force {
             if let Some(ref metadata) = maybe_metadata {
-                if self.has_changed(&repo, &metadata)? {
+                if self.has_changed(repo, metadata)? {
                     return Err("Refusing to install dotfile. Changes have been made since last sync. \
                             either run \"jtd sync\" for this dotfile or call install again with the \
                             \"--force\" flag".into());
@@ -216,7 +217,7 @@ impl Dotfile {
             String::new()
         };
 
-        let repo_dir = get_repo_dir(&repo);
+        let repo_dir = get_repo_dir(repo);
         self.install_dotfile(repo_dir)?;
 
         let post_install_hash = if !skip_install_steps {
@@ -237,9 +238,7 @@ impl Dotfile {
         config: &Config,
         metadata: Option<&DotfileMetadata>,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        let mut target_path_buf = get_repo_dir(&repo).to_owned();
-        target_path_buf.push(&self.file);
-        let target_path = target_path_buf.as_path();
+        let target_path = get_repo_dir(repo).join(&self.file);
 
         let origin_path_unexpanded = &self.target.to_string_lossy();
         let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
@@ -248,7 +247,7 @@ impl Dotfile {
         if let Some(metadata) = metadata {
             let mut new_metadata = metadata.clone();
 
-            if self.has_changed(&repo, &metadata)? {
+            if self.has_changed(repo, metadata)? {
                 let parent_commit = get_commit(repo, &metadata.commit_hash).map_err(
                     |_| format!("Could not find last sync'd commit for {}, manifest is corrupt. Try fresh-installing \
                                 this dotfile or manually correcting the commit hash in {}", dotfile_name, MANIFEST_PATH))?;
@@ -257,12 +256,12 @@ impl Dotfile {
                 let head_ref_name = head_ref.name().unwrap();
                 let merge_target_commit = repo.reference_to_annotated_commit(&head_ref)?;
 
-                checkout_ref(&repo, &parent_commit.id().to_string())?;
+                checkout_ref(repo, &parent_commit.id().to_string())?;
                 fs::copy(origin_path, target_path)?;
 
                 let new_branch_name = format!("merge-{}-dotfile", dotfile_name);
                 let _new_branch = repo.branch(&new_branch_name, &parent_commit, true)?;
-                checkout_ref(&repo, &new_branch_name)?;
+                checkout_ref(repo, &new_branch_name)?;
 
                 let _new_commit = add_and_commit(
                     repo,
@@ -273,7 +272,7 @@ impl Dotfile {
                 )?;
 
                 let new_commit = repo.reference_to_annotated_commit(&repo.head()?)?;
-                checkout_ref(&repo, &head_ref_name)?;
+                checkout_ref(repo, head_ref_name)?;
 
                 let merge_commit = normal_merge(repo, &merge_target_commit, &new_commit)
                     .map_err(|err| format!("Could not merge commits: {}", err))?;
@@ -298,6 +297,44 @@ impl Dotfile {
                 self.hash_post_install(),
             ))
         }
+    }
+
+    pub fn diff(&self, repo: &Repository, dotfile_name: &str) -> Result<(), Box<dyn Error>> {
+        let target_path = get_repo_dir(repo).join(&self.file);
+
+        let origin_path_unexpanded = &self.target.to_string_lossy();
+        let origin_path_str = shellexpand::tilde(origin_path_unexpanded);
+        let origin_path = Path::new(origin_path_str.as_ref());
+
+        fs::copy(origin_path, target_path)?;
+
+        let diff = repo.diff_index_to_workdir(None, None)?;
+
+        if diff.deltas().count() == 0 {
+            warn!("No diffs found for {} dotfile", dotfile_name);
+            return Ok(());
+        } else {
+            info!("Showing diffs for {} dotfile", dotfile_name);
+        }
+
+        diff.print(git2::DiffFormat::Patch, |_, _, line| {
+            // Skip diff headers. We only diff singular files, they're superfluous
+            if line.origin() == 'F' {
+                return true;
+            }
+
+            let colorized_line = colorize_and_format_diff_line(&line);
+            if let Some(line) = colorized_line {
+                print!("{}", line);
+            } else {
+                print!(
+                    "{}",
+                    style("--- FAILED TO PRINT DIFF LINE ---").red().bold()
+                );
+            }
+            true
+        })?;
+        Ok(())
     }
 }
 
@@ -381,7 +418,7 @@ mod tests {
             post_install: None,
         };
 
-        assert_eq!(false, dotfile.has_unexecuted_run_stages(&None));
+        assert!(!dotfile.has_unexecuted_run_stages(&None));
     }
 
     #[test]
@@ -399,7 +436,7 @@ mod tests {
             post_install_hash: "".to_string(),
         };
 
-        assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+        assert!(!dotfile.has_unexecuted_run_stages(&Some(&metadata)));
     }
 
     #[test]
@@ -425,7 +462,7 @@ mod tests {
             post_install_hash: "".to_string(),
         };
 
-        assert_eq!(true, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+        assert!(dotfile.has_unexecuted_run_stages(&Some(&metadata)));
     }
 
     #[test]
@@ -451,7 +488,7 @@ mod tests {
             post_install_hash: "1ef98a8d0946d6512ca5da8242eb7a52a506de54".to_string(),
         };
 
-        assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+        assert!(!dotfile.has_unexecuted_run_stages(&Some(&metadata)));
     }
 
     #[test]
@@ -466,7 +503,7 @@ mod tests {
 
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
-        File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+        File::create(local_filepath).expect("Could not create file in tempdir");
 
         let commit = add_and_commit(
             &repo,
@@ -501,7 +538,7 @@ mod tests {
 
         // Create file in repo
         let filepath = repo_dir.path().to_owned().join("dotfile");
-        File::create(filepath.to_owned()).expect("Could not create file in repo");
+        File::create(filepath).expect("Could not create file in repo");
 
         // Create dotfile "on the local system" with different contents
         let filepath = dotfile_dir.path().to_owned().join("dotfile");
@@ -632,7 +669,7 @@ mod tests {
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
-            File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+            File::create(local_filepath).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
             .expect("Failed to write to dotfile");
 
@@ -647,7 +684,7 @@ mod tests {
 
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
-            target: target_path.clone(),
+            target: target_path,
             pre_install: None,
             post_install: None,
         };
@@ -684,13 +721,13 @@ mod tests {
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
-            File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+            File::create(local_filepath).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
             .expect("Failed to write to dotfile");
 
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
-            target: target_path.clone(),
+            target: target_path,
             pre_install: None,
             post_install: None,
         };
@@ -729,13 +766,13 @@ mod tests {
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
-            File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+            File::create(local_filepath).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
             .expect("Failed to write to dotfile");
 
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
-            target: target_path.clone(),
+            target: target_path,
             pre_install: None,
             post_install: None,
         };
@@ -779,11 +816,11 @@ mod tests {
 
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
-        File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+        File::create(local_filepath).expect("Could not create file in tempdir");
 
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
-            target: target_path.clone(),
+            target: target_path,
             pre_install: None,
             post_install: None,
         };

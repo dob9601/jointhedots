@@ -1,11 +1,12 @@
 use std::io::{stdin, stdout, Write};
 use std::{error::Error, path::Path, sync::RwLock};
 
-use console::style;
+use console::{style, StyledObject};
 use dialoguer::{Input, Password};
 use git2::build::CheckoutBuilder;
 use git2::{
-    AnnotatedCommit, Commit, Direction, PushOptions, RemoteCallbacks, Repository, Signature,
+    AnnotatedCommit, Commit, DiffLine, Direction, PushOptions, RemoteCallbacks, Repository,
+    Signature,
 };
 use git2::{Error as Git2Error, IndexAddOption, MergeOptions};
 use git2_credentials::{CredentialHandler, CredentialUI};
@@ -174,7 +175,7 @@ pub fn add_and_commit<'a>(
     maybe_parents: Option<Vec<&Commit>>,
     update_ref: Option<&str>,
 ) -> Result<Commit<'a>, Box<dyn Error>> {
-    add_all(&repo, file_paths)?;
+    add_all(repo, file_paths)?;
 
     let mut index = repo.index()?;
     let oid = index.write_tree()?;
@@ -263,7 +264,26 @@ pub fn normal_merge<'a>(
         ],
     )?;
     repo.cleanup_state()?;
-    Ok(get_head(&repo)?)
+    get_head(repo)
+}
+
+pub fn colorize_and_format_diff_line<'a>(line: &'a DiffLine) -> Option<StyledObject<&'a str>> {
+    let decoded_diff = std::str::from_utf8(line.content());
+
+    if let Ok(diff) = decoded_diff {
+        let styled_diff = style(diff);
+        match line.origin() {
+            '+' => Some(styled_diff.green()),
+            '-' => Some(styled_diff.red()),
+            '>' => Some(styled_diff.green()),
+            '<' => Some(styled_diff.red()),
+            'F' => Some(styled_diff.bold()),
+            'H' => Some(styled_diff.cyan()),
+            _ => Some(styled_diff),
+        }
+    } else {
+        None
+    }
 }
 
 pub fn get_repo_dir(repo: &Repository) -> &Path {
@@ -452,7 +472,7 @@ mod tests {
 
         let head_ref = &repo.head().unwrap();
         let head_ref_name = head_ref.name().unwrap();
-        let annotated_main_head = repo.reference_to_annotated_commit(&head_ref).unwrap();
+        let annotated_main_head = repo.reference_to_annotated_commit(head_ref).unwrap();
 
         let _branch = repo
             .branch("branch", &first_commit, true)

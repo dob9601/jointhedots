@@ -13,10 +13,12 @@ pub(crate) mod git {
 }
 
 pub mod subcommands {
+    mod diff;
     mod install;
     mod interactive;
     mod sync;
 
+    pub use diff::diff_subcommand_handler;
     pub use install::install_subcommand_handler;
     pub use interactive::interactive_subcommand_handler;
     pub use sync::sync_subcommand_handler;
