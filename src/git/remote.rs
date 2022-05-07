@@ -5,8 +5,8 @@ use strum_macros::{Display, EnumIter};
 
 #[derive(ArgEnum, Clone, EnumIter, Display, Debug, PartialEq)]
 pub enum ConnectionMethod {
-    SSH,
-    HTTPS,
+    Ssh,
+    Https,
 }
 
 impl FromStr for ConnectionMethod {
@@ -14,8 +14,8 @@ impl FromStr for ConnectionMethod {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "ssh" => Ok(ConnectionMethod::SSH),
-            "https" => Ok(ConnectionMethod::HTTPS),
+            "ssh" => Ok(ConnectionMethod::Ssh),
+            "https" => Ok(ConnectionMethod::Https),
             v => Err(format!("Failed to convert: '{}' is not a known variant.", v).into()),
         }
     }
@@ -66,8 +66,8 @@ pub fn get_host_git_url(
     };
 
     match method {
-        ConnectionMethod::SSH => Ok(format!("{}{}{}", repo_host.ssh_prefix, repository, ".git")),
-        ConnectionMethod::HTTPS => Ok(format!(
+        ConnectionMethod::Ssh => Ok(format!("{}{}{}", repo_host.ssh_prefix, repository, ".git")),
+        ConnectionMethod::Https => Ok(format!(
             "{}{}{}",
             repo_host.https_prefix, repository, ".git"
         )),
@@ -82,7 +82,7 @@ mod tests {
     fn test_get_host_git_url_ssh_github() {
         let repo = "dob9601/dotfiles";
         let host = RepoHostName::GitHub;
-        let method = ConnectionMethod::SSH;
+        let method = ConnectionMethod::Ssh;
 
         let host_url = get_host_git_url(repo, &host, &method).expect("Failed to get host url");
         assert_eq!(
@@ -95,7 +95,7 @@ mod tests {
     fn test_get_host_git_url_https_gitlab() {
         let repo = "dob9601/dotfiles";
         let host = RepoHostName::GitLab;
-        let method = ConnectionMethod::HTTPS;
+        let method = ConnectionMethod::Https;
 
         let host_url = get_host_git_url(repo, &host, &method).expect("Failed to get host url");
         assert_eq!(
@@ -137,7 +137,7 @@ mod tests {
         assert_eq!(
             <ConnectionMethod as std::str::FromStr>::from_str(method)
                 .expect("Could not convert from str"),
-            ConnectionMethod::SSH
+            ConnectionMethod::Ssh
         )
     }
 
@@ -147,7 +147,7 @@ mod tests {
         assert_eq!(
             <ConnectionMethod as std::str::FromStr>::from_str(method)
                 .expect("Could not convert from str"),
-            ConnectionMethod::HTTPS
+            ConnectionMethod::Https
         )
     }
 

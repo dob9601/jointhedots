@@ -160,18 +160,18 @@ impl Dotfile {
         let dotfile_contents = fs::read_to_string(local_dotfile_path)?;
         let local_dotfile_hash = Sha1::digest(dotfile_contents.as_bytes());
 
-        checkout_ref(&repo, &metadata.commit_hash)?;
+        checkout_ref(repo, &metadata.sync_hash)?;
 
-        let repo_dir = get_repo_dir(&repo);
+        let repo_dir = get_repo_dir(repo);
         let repo_dotfile_path = &repo_dir.join(&self.file);
         let dotfile_contents = fs::read_to_string(repo_dotfile_path)?;
         let repo_dotfile_hash = Sha1::digest(dotfile_contents.as_bytes());
 
         if local_dotfile_hash != repo_dotfile_hash {
-            checkout_ref(&repo, &head_ref_name)?;
-            return Ok(true);
+            checkout_ref(repo, head_ref_name)?;
+            Ok(true)
         } else {
-            checkout_ref(&repo, &head_ref_name)?;
+            checkout_ref(repo, head_ref_name)?;
             Ok(false)
         }
     }
@@ -199,10 +199,10 @@ impl Dotfile {
         skip_install_steps: bool,
         force: bool,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        let commit_hash = get_head_hash(&repo)?;
+        let commit_hash = get_head_hash(repo)?;
         if !force {
             if let Some(ref metadata) = maybe_metadata {
-                if self.has_changed(&repo, &metadata)? {
+                if self.has_changed(repo, metadata)? {
                     return Err("Refusing to install dotfile. Changes have been made since last sync. \
                             either run \"jtd sync\" for this dotfile or call install again with the \
                             \"--force\" flag".into());
@@ -216,7 +216,7 @@ impl Dotfile {
             String::new()
         };
 
-        let repo_dir = get_repo_dir(&repo);
+        let repo_dir = get_repo_dir(repo);
         self.install_dotfile(repo_dir)?;
 
         let post_install_hash = if !skip_install_steps {
@@ -225,7 +225,7 @@ impl Dotfile {
             String::new()
         };
 
-        let new_metadata = DotfileMetadata::new(&commit_hash, pre_install_hash, post_install_hash);
+        let new_metadata = DotfileMetadata::new(&commit_hash, &commit_hash, pre_install_hash, post_install_hash);
 
         Ok(new_metadata)
     }
@@ -237,7 +237,7 @@ impl Dotfile {
         config: &Config,
         metadata: Option<&DotfileMetadata>,
     ) -> Result<DotfileMetadata, Box<dyn Error>> {
-        let mut target_path_buf = get_repo_dir(&repo).to_owned();
+        let mut target_path_buf = get_repo_dir(repo).to_owned();
         target_path_buf.push(&self.file);
         let target_path = target_path_buf.as_path();
 
@@ -248,8 +248,8 @@ impl Dotfile {
         if let Some(metadata) = metadata {
             let mut new_metadata = metadata.clone();
 
-            if self.has_changed(&repo, &metadata)? {
-                let parent_commit = get_commit(repo, &metadata.commit_hash).map_err(
+            if self.has_changed(repo, metadata)? {
+                let parent_commit = get_commit(repo, &metadata.install_hash).map_err(
                     |_| format!("Could not find last sync'd commit for {}, manifest is corrupt. Try fresh-installing \
                                 this dotfile or manually correcting the commit hash in {}", dotfile_name, MANIFEST_PATH))?;
 
@@ -257,12 +257,12 @@ impl Dotfile {
                 let head_ref_name = head_ref.name().unwrap();
                 let merge_target_commit = repo.reference_to_annotated_commit(&head_ref)?;
 
-                checkout_ref(&repo, &parent_commit.id().to_string())?;
+                checkout_ref(repo, &parent_commit.id().to_string())?;
                 fs::copy(origin_path, target_path)?;
 
                 let new_branch_name = format!("merge-{}-dotfile", dotfile_name);
                 let _new_branch = repo.branch(&new_branch_name, &parent_commit, true)?;
-                checkout_ref(&repo, &new_branch_name)?;
+                checkout_ref(repo, &new_branch_name)?;
 
                 let _new_commit = add_and_commit(
                     repo,
@@ -273,12 +273,12 @@ impl Dotfile {
                 )?;
 
                 let new_commit = repo.reference_to_annotated_commit(&repo.head()?)?;
-                checkout_ref(&repo, &head_ref_name)?;
+                checkout_ref(repo, head_ref_name)?;
 
                 let merge_commit = normal_merge(repo, &merge_target_commit, &new_commit)
                     .map_err(|err| format!("Could not merge commits: {}", err))?;
 
-                new_metadata.commit_hash = merge_commit.id().to_string();
+                new_metadata.install_hash = merge_commit.id().to_string();
             } else {
                 info!("Skipping syncing {} as no changes made", dotfile_name);
             }
@@ -293,6 +293,7 @@ impl Dotfile {
                 Some("HEAD"),
             )?;
             Ok(DotfileMetadata::new(
+                &new_commit.id().to_string(),
                 &new_commit.id().to_string(),
                 self.hash_pre_install(),
                 self.hash_post_install(),
@@ -381,7 +382,7 @@ mod tests {
             post_install: None,
         };
 
-        assert_eq!(false, dotfile.has_unexecuted_run_stages(&None));
+        assert!(!dotfile.has_unexecuted_run_stages(&None));
     }
 
     #[test]
@@ -394,12 +395,13 @@ mod tests {
         };
 
         let metadata = DotfileMetadata {
-            commit_hash: "".to_string(),
+            install_hash: "".to_string(),
+            sync_hash: "".to_string(),
             pre_install_hash: "".to_string(),
             post_install_hash: "".to_string(),
         };
 
-        assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+        assert!(!dotfile.has_unexecuted_run_stages(&Some(&metadata)));
     }
 
     #[test]
@@ -420,12 +422,13 @@ mod tests {
         };
 
         let metadata = DotfileMetadata {
-            commit_hash: "".to_string(),
+            install_hash: "".to_string(),
+            sync_hash: "".to_string(),
             pre_install_hash: "".to_string(),
             post_install_hash: "".to_string(),
         };
 
-        assert_eq!(true, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+        assert!(dotfile.has_unexecuted_run_stages(&Some(&metadata)));
     }
 
     #[test]
@@ -446,12 +449,13 @@ mod tests {
         };
 
         let metadata = DotfileMetadata {
-            commit_hash: "".to_string(),
+            install_hash: "".to_string(),
+            sync_hash: "".to_string(),
             pre_install_hash: "1ef98a8d0946d6512ca5da8242eb7a52a506de54".to_string(),
             post_install_hash: "1ef98a8d0946d6512ca5da8242eb7a52a506de54".to_string(),
         };
 
-        assert_eq!(false, dotfile.has_unexecuted_run_stages(&Some(&metadata)));
+        assert!(!dotfile.has_unexecuted_run_stages(&Some(&metadata)));
     }
 
     #[test]
@@ -466,7 +470,7 @@ mod tests {
 
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
-        File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+        File::create(local_filepath).expect("Could not create file in tempdir");
 
         let commit = add_and_commit(
             &repo,
@@ -485,7 +489,8 @@ mod tests {
         };
 
         let metadata = DotfileMetadata {
-            commit_hash: commit.id().to_string(),
+            install_hash: commit.id().to_string(),
+            sync_hash: commit.id().to_string(),
             pre_install_hash: "".to_string(),
             post_install_hash: "".to_string(),
         };
@@ -501,7 +506,7 @@ mod tests {
 
         // Create file in repo
         let filepath = repo_dir.path().to_owned().join("dotfile");
-        File::create(filepath.to_owned()).expect("Could not create file in repo");
+        File::create(filepath).expect("Could not create file in repo");
 
         // Create dotfile "on the local system" with different contents
         let filepath = dotfile_dir.path().to_owned().join("dotfile");
@@ -528,7 +533,8 @@ mod tests {
         };
 
         let metadata = DotfileMetadata {
-            commit_hash: commit.id().to_string(),
+            install_hash: commit.id().to_string(),
+            sync_hash: commit.id().to_string(),
             pre_install_hash: "".to_string(),
             post_install_hash: "".to_string(),
         };
@@ -632,11 +638,11 @@ mod tests {
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
-            File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+            File::create(local_filepath).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
             .expect("Failed to write to dotfile");
 
-        let _commit = add_and_commit(
+        let commit = add_and_commit(
             &repo,
             Some(vec![&filepath]),
             "commit message",
@@ -647,13 +653,14 @@ mod tests {
 
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
-            target: target_path.clone(),
+            target: target_path,
             pre_install: None,
             post_install: None,
         };
 
         let metadata = DotfileMetadata {
-            commit_hash: _commit.id().to_string(),
+            install_hash: commit.id().to_string(),
+            sync_hash: commit.id().to_string(),
             pre_install_hash: "".to_string(),
             post_install_hash: "".to_string(),
         };
@@ -684,13 +691,13 @@ mod tests {
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
-            File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+            File::create(local_filepath).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
             .expect("Failed to write to dotfile");
 
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
-            target: target_path.clone(),
+            target: target_path,
             pre_install: None,
             post_install: None,
         };
@@ -717,7 +724,7 @@ mod tests {
         // Create file in repo
         let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
-        let _commit = add_and_commit(
+        let commit = add_and_commit(
             &repo,
             Some(vec![&filepath]),
             "commit message",
@@ -729,19 +736,20 @@ mod tests {
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
         let mut file =
-            File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+            File::create(local_filepath).expect("Could not create file in tempdir");
         file.write_all(b"These are local changes on the system")
             .expect("Failed to write to dotfile");
 
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
-            target: target_path.clone(),
+            target: target_path,
             pre_install: None,
             post_install: None,
         };
 
         let metadata = DotfileMetadata {
-            commit_hash: _commit.id().to_string(),
+            install_hash: commit.id().to_string(),
+            sync_hash: commit.id().to_string(),
             pre_install_hash: "".to_string(),
             post_install_hash: "".to_string(),
         };
@@ -768,7 +776,7 @@ mod tests {
         // Create file in repo
         let filepath = repo_dir.path().to_owned().join("dotfile");
         File::create(filepath.to_owned()).expect("Could not create file in repo");
-        let _commit = add_and_commit(
+        let commit = add_and_commit(
             &repo,
             Some(vec![&filepath]),
             "commit message",
@@ -779,17 +787,18 @@ mod tests {
 
         // Create dotfile "on the local system"
         let local_filepath = dotfile_dir.path().to_owned().join("dotfile");
-        File::create(local_filepath.to_owned()).expect("Could not create file in tempdir");
+        File::create(local_filepath).expect("Could not create file in tempdir");
 
         let dotfile = Dotfile {
             file: "dotfile".to_string(),
-            target: target_path.clone(),
+            target: target_path,
             pre_install: None,
             post_install: None,
         };
 
         let metadata = DotfileMetadata {
-            commit_hash: _commit.id().to_string(),
+            install_hash: commit.id().to_string(),
+            sync_hash: commit.id().to_string(),
             pre_install_hash: "".to_string(),
             post_install_hash: "".to_string(),
         };
@@ -802,6 +811,6 @@ mod tests {
 
         // Check that the head commit of the repo is still the initial commit - i.e. no changes
         // have been committed
-        assert_eq!(_commit.id(), get_head(&repo).unwrap().id());
+        assert_eq!(commit.id(), get_head(&repo).unwrap().id());
     }
 }

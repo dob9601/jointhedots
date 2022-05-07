@@ -24,7 +24,7 @@ impl Config {
         let mut commit_message = self.commit_prefix.to_string();
 
         if dotfile_names.len() == 1 {
-            commit_message.push_str(&SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", &dotfile_names[0]));
+            commit_message.push_str(&SINGLE_DOTFILE_COMMIT_FORMAT.replace("{}", dotfile_names[0]));
         } else {
             commit_message.push_str(
                 &MULTIPLE_DOTFILES_COMMIT_FORMAT
