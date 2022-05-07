@@ -80,7 +80,10 @@ impl AggregatedDotfileMetadata {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DotfileMetadata {
     /// The hash of the commit this dotfile was installed from
-    pub commit_hash: String,
+    pub install_hash: String,
+
+    /// The hash of the commit created when this dotfile was last synced
+    pub sync_hash: String,
 
     /// The sha1 hash of the pre-install steps. Used to figure out whether pre-install should be
     /// run again on subsequent installations
@@ -93,9 +96,10 @@ pub struct DotfileMetadata {
 
 impl DotfileMetadata {
     /// Extract the metadata from a [Dotfile] and the commit hash the dotfile was installed from
-    pub fn new(commit_hash: &str, pre_install_hash: String, post_install_hash: String) -> Self {
+    pub fn new(commit_hash: &str, sync_hash: &str, pre_install_hash: String, post_install_hash: String) -> Self {
         DotfileMetadata {
-            commit_hash: commit_hash.to_string(),
+            install_hash: commit_hash.to_string(),
+            sync_hash: sync_hash.to_string(),
             pre_install_hash,
             post_install_hash,
         }

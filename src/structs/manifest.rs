@@ -74,7 +74,7 @@ impl Manifest {
                 .unwrap();
         }
 
-        let repo_dir = get_repo_dir(&repo);
+        let repo_dir = get_repo_dir(repo);
 
         for (dotfile_name, dotfile) in dotfiles {
             let mut origin_path_buf = PathBuf::from(&repo_dir);
@@ -102,7 +102,7 @@ impl Manifest {
                 .map(|d| (*d).clone());
 
             let metadata =
-                dotfile.install(&repo, maybe_metadata, skip_install_commands, force_install)?;
+                dotfile.install(repo, maybe_metadata, skip_install_commands, force_install)?;
 
             aggregated_metadata
                 .data
@@ -210,7 +210,7 @@ impl Manifest {
                 aggregated_metadata.data.get(dotfile_name.as_str()),
             )?;
 
-            commit_hashes.push(new_metadata.commit_hash.to_owned());
+            commit_hashes.push(new_metadata.install_hash.to_owned());
             aggregated_metadata
                 .data
                 .insert((*dotfile_name).to_string(), new_metadata);
@@ -251,7 +251,7 @@ impl Manifest {
                         .any(|s| s == &dotfile_name)
                         || sync_all
                     {
-                        metadata.commit_hash = commit_hash.to_owned();
+                        metadata.install_hash = commit_hash.to_owned();
                     }
                 }
             }
@@ -301,7 +301,7 @@ kitty:
 
         let path = tempdir.path().join(Path::new("manifest.yaml"));
         let mut manifest_file = File::create(path.to_owned()).unwrap();
-        manifest_file.write(SAMPLE_MANIFEST.as_bytes()).unwrap();
+        manifest_file.write_all(SAMPLE_MANIFEST.as_bytes()).unwrap();
 
         let manifest = Manifest::get(&path).unwrap();
 
